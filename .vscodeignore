@@ -2,7 +2,12 @@
 .vscode-test/**
 .git/**
 src/**
+out/test/**
 dev/**
 .gitignore
 .directory
 tsconfig.json
+package-lock.json
+AGENTS.md
+.DS_Store
+**/*.map
