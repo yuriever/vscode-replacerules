@@ -1,7 +1,5 @@
 # Replace Rules
 
-[![Version](https://vsmarketplacebadge.apphb.com/version/bhughes339.replacerules.svg)](https://marketplace.visualstudio.com/items?itemName=bhughes339.replacerules)
-
 Create search/replace rules. A "rule" is one or more search/replace patterns that can be applied to the entire document, or one or more selections of text.
 
 Replace Rules uses JavaScript regular expressions for searching and replacing. [Click here](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions) for an overview of JavaScript RegEx.
@@ -10,8 +8,9 @@ Inspired by the Sublime Text plugin [RegReplace](https://github.com/facelessuser
 
 ## Getting started
 
-1) Add the rules you want to use in your `settings.json` (open the Command Palette and select `Preferences: open settings (JSON)`)
-2) Press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>R</kbd> and select the rule you'd like to run across your selection or document. Alternatively, open the Command Palette (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>) and select **Replace Rules: Run Rule...**
+1. Add the rules you want to use in your `settings.json` (open the Command Palette and select `Preferences: open settings (JSON)`)
+
+2. Press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>R</kbd> and select the rule you'd like to run across your selection or document. Alternatively, open the Command Palette (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>) and select **Replace Rules: Run Rule...**
 
 ## Configuration options
 
