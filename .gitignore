@@ -3,3 +3,5 @@ node_modules
 .directory
 package-lock.json
 dev
+AGENTS.md
+.vscode-test

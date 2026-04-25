@@ -1,5 +1,13 @@
 # Change Log
 
+## Unreleased
+
+- Maintenance: upgrade toolchain and dev dependencies to current stable versions
+    - Update VS Code engine baseline to `^1.90.0`
+    - Update TypeScript, ESLint, Mocha, Glob, Node/VS Code type packages, and VS Code test runner
+- Maintenance: modernize test suite loader for current `mocha` and `glob` APIs
+- No functional behavior changes to replace rules, rulesets, or clipboard commands
+
 ## 0.4.2
 
 - New feature: Run ruleset on clipboard and paste into document (replacerules.pasteAndReplaceRuleset)
