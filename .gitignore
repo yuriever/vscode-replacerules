@@ -5,3 +5,4 @@ package-lock.json
 dev
 AGENTS.md
 .vscode-test
+.DS_Store
