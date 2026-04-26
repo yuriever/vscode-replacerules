@@ -12,13 +12,16 @@ This validates integration between command registration, config parsing, and rep
 ## Covered scenarios
 
 1. runRule replaces the full document when there is a single empty selection.
-2. runRuleset applies multiple rules in sequence.
-3. runRule only updates explicit non-empty selections in a multi-selection editor.
-4. runRule skips rules whose `languages` filter does not match the active document.
-5. Removed clipboard replace commands are no longer registered.
-6. runRuleset loads external config from `replacerules.configPath`, including paths with spaces.
-7. runRule reports invalid regex config errors without modifying the document.
-8. runRule reports missing `configPath` file errors without modifying the document.
+2. runRule command completion waits for document edits to finish.
+3. runRuleset applies multiple rules in sequence.
+4. runRule only updates explicit non-empty selections in a multi-selection editor.
+5. runRule preserves CRLF line endings both with and without replacements.
+6. runRule skips rules whose `languages` filter does not match the active document.
+7. Removed clipboard replace commands are no longer registered.
+8. runRuleset loads external config from `replacerules.configPath`, including paths with spaces.
+9. runRule reports invalid regex config errors without modifying the document.
+10. runRule reports missing `configPath` file errors without modifying the document.
+11. parseRegexInput accepts `/pattern/flags` and rejects malformed literals.
 
 ## Isolation helpers
 

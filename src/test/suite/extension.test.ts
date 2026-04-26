@@ -3,6 +3,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { parseRegexInput } from '../../extension';
 
 type ConfigSnapshot = {
 	configPath: unknown;
@@ -49,6 +50,24 @@ suite('Extension Test Suite', () => {
 
 		await vscode.commands.executeCommand('replacerules.runRule', { ruleName: 'Uppercase a' });
 		await waitForDocumentText(editor.document, 'A cAt And A hAt');
+	});
+
+	test('runRule command resolves after edits are applied', async () => {
+		await setReplaceRulesConfig(await writeConfigFile({
+			rules: {
+				'Uppercase a': {
+					find: 'a',
+					replace: 'A',
+					flags: 'g'
+				}
+			}
+		}));
+
+		const editor = await openEditor('a cat and a hat');
+		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
+
+		await vscode.commands.executeCommand('replacerules.runRule', { ruleName: 'Uppercase a' });
+		assert.strictEqual(editor.document.getText(), 'A cAt And A hAt');
 	});
 
 	test('runRuleset applies rules in sequence', async () => {
@@ -98,6 +117,42 @@ suite('Extension Test Suite', () => {
 
 		await vscode.commands.executeCommand('replacerules.runRule', { ruleName: 'Cat to Dog' });
 		await waitForDocumentText(editor.document, 'dog fox dog');
+	});
+
+	test('runRule preserves CRLF line endings when replacements occur', async () => {
+		await setReplaceRulesConfig(await writeConfigFile({
+			rules: {
+				'Uppercase b': {
+					find: 'b',
+					replace: 'B',
+					flags: 'g'
+				}
+			}
+		}));
+
+		const editor = await openEditor('a\r\nb\r\n');
+		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
+
+		await vscode.commands.executeCommand('replacerules.runRule', { ruleName: 'Uppercase b' });
+		assert.strictEqual(editor.document.getText(), 'a\r\nB\r\n');
+	});
+
+	test('runRule preserves CRLF line endings when no replacements occur', async () => {
+		await setReplaceRulesConfig(await writeConfigFile({
+			rules: {
+				'No match': {
+					find: 'z',
+					replace: 'Z',
+					flags: 'g'
+				}
+			}
+		}));
+
+		const editor = await openEditor('a\r\nb\r\n');
+		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
+
+		await vscode.commands.executeCommand('replacerules.runRule', { ruleName: 'No match' });
+		assert.strictEqual(editor.document.getText(), 'a\r\nb\r\n');
 	});
 
 	test('runRule skips language-restricted rules for other languages', async () => {
@@ -196,6 +251,16 @@ suite('Extension Test Suite', () => {
 		assert.strictEqual(errors.length, 1);
 		assert.match(errors[0], /^Error loading replacerules\.configPath:/);
 		assert.strictEqual(editor.document.getText(), 'sample text');
+	});
+
+	test('parseRegexInput parses regex literals with flags', () => {
+		assert.deepStrictEqual(parseRegexInput('/foo/i'), { pattern: 'foo', flags: 'i' });
+		assert.deepStrictEqual(parseRegexInput('foo'), { pattern: 'foo', flags: '' });
+	});
+
+	test('parseRegexInput rejects invalid regex literals', () => {
+		assert.throws(() => parseRegexInput('/foo'), /Invalid regular expression literal/);
+		assert.throws(() => parseRegexInput('/foo/gg'), /Invalid flags supplied to RegExp constructor/);
 	});
 });
 

@@ -3,8 +3,8 @@ import * as vscode from 'vscode';
 import ReplaceRulesEditProvider from './editProvider';
 
 export function activate(context: vscode.ExtensionContext) {
-    context.subscriptions.push(vscode.commands.registerTextEditorCommand('replacerules.runRule', runSingleRule));
-    context.subscriptions.push(vscode.commands.registerTextEditorCommand('replacerules.runRuleset', runRuleset));
+    context.subscriptions.push(vscode.commands.registerCommand('replacerules.runRule', runSingleRule));
+    context.subscriptions.push(vscode.commands.registerCommand('replacerules.runRuleset', runRuleset));
     context.subscriptions.push(vscode.commands.registerCommand('replacerules.stringifyRegex', stringifyRegex));
 }
 
@@ -12,46 +12,66 @@ export function deactivate() {
 
 }
 
-function runSingleRule(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, args?: any) {
+async function runSingleRule(args?: any) {
+    let textEditor = vscode.window.activeTextEditor;
+    if (!textEditor) {
+        return;
+    }
     let editP = new ReplaceRulesEditProvider(textEditor);
     if (args) {
         let ruleName = args['ruleName'];
-        editP.runSingleRule(ruleName);
+        await editP.runSingleRule(ruleName);
     } else {
-        editP.pickRuleAndRun();
+        await editP.pickRuleAndRun();
     }
     return;
 }
 
-function runRuleset(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, args?: any) {
+async function runRuleset(args?: any) {
+    let textEditor = vscode.window.activeTextEditor;
+    if (!textEditor) {
+        return;
+    }
     let editP = new ReplaceRulesEditProvider(textEditor);
     if (args) {
         let rulesetName = args['rulesetName'];
-        editP.runRuleset(rulesetName);
+        await editP.runRuleset(rulesetName);
     } else {
-        editP.pickRulesetAndRun();
+        await editP.pickRulesetAndRun();
     }
     return;
 }
 
-function stringifyRegex() {
-    let options = { prompt: 'Enter a valid regular expression.', placeHolder: '(.*)' };
-    vscode.window.showInputBox(options).then(input => {
-        if (input) {
-            // Strip forward slashes if regex string is enclosed in them
-            input = (input.startsWith('/') && input.endsWith('/')) ? input.slice(1, -1) : input;
-            try {
-                let regex = new RegExp(input);
-                let jString = JSON.stringify(regex.toString().slice(1, -1));
-                let msg = 'JSON-escaped RegEx: ' + jString;
-                vscode.window.showInformationMessage(msg, 'Copy to clipboard').then(choice => {
-                    if (choice && choice === 'Copy to clipboard') {
-                        vscode.env.clipboard.writeText(jString);
-                    }
-                });
-            } catch (err: any) {
-                vscode.window.showErrorMessage(err.message);
-            }
+export function parseRegexInput(input: string) {
+    if (input.startsWith('/')) {
+        let literalMatch = input.match(/^\/([\s\S]*)\/([a-z]*)$/);
+        if (!literalMatch) {
+            throw new Error('Invalid regular expression literal.');
         }
-    });
+
+        let [, pattern, flags] = literalMatch;
+        new RegExp(pattern, flags);
+        return { pattern, flags };
+    }
+
+    new RegExp(input);
+    return { pattern: input, flags: '' };
+}
+
+async function stringifyRegex() {
+    let options = { prompt: 'Enter a valid regular expression.', placeHolder: '(.*)' };
+    let input = await vscode.window.showInputBox(options);
+    if (input) {
+        try {
+            let { pattern, flags } = parseRegexInput(input);
+            let jString = JSON.stringify(pattern);
+            let msg = flags ? `JSON-escaped RegEx: ${jString} (flags: ${flags})` : 'JSON-escaped RegEx: ' + jString;
+            let choice = await vscode.window.showInformationMessage(msg, 'Copy to clipboard');
+            if (choice && choice === 'Copy to clipboard') {
+                await vscode.env.clipboard.writeText(jString);
+            }
+        } catch (err: any) {
+            vscode.window.showErrorMessage(err.message);
+        }
+    }
 }

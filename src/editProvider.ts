@@ -11,18 +11,20 @@ export default class ReplaceRulesEditProvider {
     private configRules: any;
     private configRulesets: any;
 
-    public pickRuleAndRun() {
+    public async pickRuleAndRun() {
         let rules = this.getQPRules();
-        vscode.window.showQuickPick(rules).then(qpItem => {
-            if (qpItem) this.runSingleRule(qpItem.key);
-        });
+        let qpItem = await vscode.window.showQuickPick(rules);
+        if (qpItem) {
+            await this.runSingleRule(qpItem.key);
+        }
     }
 
-    public pickRulesetAndRun() {
+    public async pickRulesetAndRun() {
         let rulesets = this.getQPRulesets();
-        vscode.window.showQuickPick(rulesets).then(qpItem => {
-            if (qpItem) this.runRuleset(qpItem.key);
-        });
+        let qpItem = await vscode.window.showQuickPick(rulesets);
+        if (qpItem) {
+            await this.runRuleset(qpItem.key);
+        }
     }
 
     private getQPRules(): any[] {
@@ -69,7 +71,7 @@ export default class ReplaceRulesEditProvider {
         return items;
     }
 
-    public runSingleRule(ruleName: string) {
+    public async runSingleRule(ruleName: string) {
         let rule = this.configRules[ruleName];
         if (rule) {
             let language = this.textEditor.document.languageId;
@@ -77,32 +79,43 @@ export default class ReplaceRulesEditProvider {
                 return;
             }
             try {
-                this.doReplace(new ReplaceRule(rule));
+                await this.doReplace(new ReplaceRule(rule));
             } catch (err: any) {
                 Window.showErrorMessage('Error executing rule ' + ruleName + ': ' + err.message);
             }
         }
     }
 
-    public runRuleset(rulesetName: string) {
+    public async runRuleset(rulesetName: string) {
         let language = this.textEditor.document.languageId;
         let ruleset = this.configRulesets[rulesetName];
-        if (ruleset) {
-            let ruleObject = new ReplaceRule({ find: '' });
-            try {
-                ruleset.rules.forEach((r: string) => {
-                    let rule = this.configRules[r];
-                    if (rule) {
-                        if (Array.isArray(rule.languages) && rule.languages.indexOf(language) === -1) {
-                            return;
-                        }
-                        ruleObject.appendRule(this.configRules[r])
-                    }
-                });
-                if (ruleObject) this.doReplace(ruleObject);
-            } catch (err: any) {
-                Window.showErrorMessage('Error executing ruleset ' + rulesetName + ': ' + err.message);
+        if (!ruleset || !Array.isArray(ruleset.rules)) {
+            return;
+        }
+
+        try {
+            let matchingRules = [];
+            for (const ruleName of ruleset.rules) {
+                let rule = this.configRules[ruleName];
+                if (!rule) {
+                    continue;
+                }
+                if (Array.isArray(rule.languages) && rule.languages.indexOf(language) === -1) {
+                    continue;
+                }
+                matchingRules.push(rule);
             }
+
+            if (matchingRules.length === 0) {
+                return;
+            }
+
+            let [firstRule, ...remainingRules] = matchingRules;
+            let ruleObject = new ReplaceRule(firstRule);
+            remainingRules.forEach(rule => ruleObject.appendRule(rule));
+            await this.doReplace(ruleObject);
+        } catch (err: any) {
+            Window.showErrorMessage('Error executing ruleset ' + rulesetName + ': ' + err.message);
         }
     }
 
@@ -116,9 +129,13 @@ export default class ReplaceRulesEditProvider {
             let index = (numSelections === 1 && sel.isEmpty) ? -1 : x;
             let range = rangeUpdate(e, d, index);
             for (const r of rule.steps) {
-                let findText = stripCR(d.getText(range));
+                let findText = d.getText(range);
+                let updatedText = applyReplacement(findText, r);
+                if (updatedText === undefined) {
+                    continue;
+                }
                 await e.edit((edit) => {
-                    edit.replace(range, findText.replace(r.find, r.replace));
+                    edit.replace(range, updatedText);
                 }, editOptions);
                 range = rangeUpdate(e, d, index);
             }
@@ -195,8 +212,21 @@ const rangeUpdate = (e: TextEditor, d: vscode.TextDocument, index: number) => {
     }
 }
 
-const stripCR = (str: string) => {
+const normalizeLineEndings = (str: string) => {
     return str.replace(new RegExp(/\r\n/, 'g'), '\n');
+}
+
+const applyReplacement = (originalText: string, replacement: Replacement) => {
+    let normalizedOriginal = normalizeLineEndings(originalText);
+    let normalizedUpdated = normalizedOriginal.replace(replacement.find, replacement.replace);
+
+    if (normalizedUpdated === normalizedOriginal) {
+        return undefined;
+    }
+
+    return /\r\n/.test(originalText)
+        ? normalizedUpdated.replace(new RegExp(/\n/, 'g'), '\r\n')
+        : normalizedUpdated;
 }
 
 type ExternalReplaceRulesConfig = {

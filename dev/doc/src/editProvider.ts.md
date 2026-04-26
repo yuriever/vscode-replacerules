@@ -32,6 +32,7 @@ ReplaceRulesEditProvider
 There is one execution path:
 
 - doReplace(rule): Runs replacements on the active document or selections.
+- The replace path preserves CRLF line endings when writing back to the document.
 
 ### Full-document behavior
 
@@ -41,6 +42,7 @@ If there is exactly one selection and it is empty, the entire document is target
 
 A rule can contain multiple find and replace steps. Steps are executed in order.
 Rulesets append steps from multiple rules into one sequence and then execute.
+If a ruleset resolves to zero applicable rules, no edit is attempted.
 
 ## Internal rule model
 
@@ -55,9 +57,10 @@ Rulesets append steps from multiple rules into one sequence and then execute.
 
 - objToArray(obj): Normalizes config field values.
 - rangeUpdate(editor, document, index): Computes effective replace range.
-- stripCR(str): Normalizes CRLF to LF before matching.
+- normalizeLineEndings(str): Normalizes CRLF to LF for matching only.
 - loadExternalConfig(path, documentUri): Reads and parses external JSON config.
 - resolveConfigPath(path, documentUri): Expands `~/` and resolves workspace-relative paths.
+- applyReplacement(text, replacement): Applies normalized matching while preserving CRLF line endings in output.
 - escapeRegExp(str): Escapes literal patterns.
 
 ## Maintenance notes

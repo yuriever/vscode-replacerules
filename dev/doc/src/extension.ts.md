@@ -17,18 +17,20 @@ This file is the extension entry point. It registers commands and routes command
 
 ## Command routing behavior
 
-Each text-editor command creates a new ReplaceRulesEditProvider instance for the active editor.
+Each command reads `vscode.window.activeTextEditor` and creates a new ReplaceRulesEditProvider instance for that editor.
 
 - If args include ruleName or rulesetName, the command executes directly.
 - If args are missing, the provider shows a quick pick and lets the user choose.
+- Command handlers await provider work so the command lifecycle matches edit completion.
 
 ## stringifyRegex flow
 
 1. Prompt the user for a regular expression text.
-2. If input is wrapped by forward slashes, remove the wrapper.
+2. Accept either a bare pattern or `/pattern/flags` input.
 3. Validate by constructing a RegExp instance.
-4. Convert to JSON-safe string form via JSON.stringify.
-5. Offer an action to copy the escaped string to clipboard.
+4. Convert the pattern portion to JSON-safe string form via JSON.stringify.
+5. If flags were present, include them in the message for later use in the rule config.
+6. Offer an action to copy the escaped string to clipboard.
 
 ## Maintenance notes
 

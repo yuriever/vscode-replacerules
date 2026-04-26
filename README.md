@@ -42,6 +42,7 @@ The JSON file pointed to by `replacerules.configPath` contains `rules` and `rule
 `replacerules.configPath` points to a JSON file that contains `rules` and `rulesets`.
 
 - Absolute paths are supported.
+- Windows-style backslashes are passed through as written in `settings.json`.
 - Paths containing spaces are supported.
 - `~/` expands to the current home directory.
 - Relative paths are resolved from the current workspace folder when one exists.
@@ -80,3 +81,5 @@ External file contents:
 Formats a valid regular expression in JSON string format for use in rule objects.
 
 - Command palette: **Replace Rules: Stringify regular expression**
+- Accepts either a bare pattern such as `(.*)` or a literal-style input such as `/foo/i`
+- When literal-style input includes flags, the escaped pattern is still copied by itself, and the flags are shown in the message so they can be placed in the rule's `flags` field
