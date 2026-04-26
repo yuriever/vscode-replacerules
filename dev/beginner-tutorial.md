@@ -53,7 +53,7 @@
 - `src/extension.ts`
     - 扩展入口；负责注册命令并转发到执行逻辑。
 - `src/editProvider.ts`
-    - 核心替换逻辑（rule/ruleset、语言过滤、选区与全文件替换、剪贴板替换）。
+    - 核心替换逻辑（rule/ruleset、语言过滤、选区与全文件替换）。
 - `src/test/runTest.ts`
     - 测试启动器；拉起 VS Code Extension Host 执行测试。
 - `src/test/suite/index.ts`
@@ -88,7 +88,7 @@
 4. 只提交与本次需求相关的文件
    - 常见会提交：`src/**`、`package.json`、`package-lock.json`、`tsconfig.json`、`README.md`、`CHANGELOG.md`，以及相关 `dev/**` 文档。
 5. 统一 commit message（建议带范围）
-   - 例如：`feat: add ruleset validation for clipboard flow`
+   - 例如：`feat: add ruleset validation`
 
 当前仓库默认应被跟踪的核心文件（节选）：
 
@@ -151,7 +151,6 @@
 
 - 单 rule 对整文档替换
 - ruleset 顺序执行
-- 剪贴板替换是否保留原剪贴板
 - 空选区与多选区行为
 - 非法规则/配置错误提示
 

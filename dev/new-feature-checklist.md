@@ -9,7 +9,6 @@
 ## 扩展入口与配置变更
 
 - 新增命令时，更新 `package.json` 中的 `contributes.commands`。
-- 仅在不冲突时新增快捷键绑定。
 - 新增设置项时，更新 `contributes.configuration.properties` 的配置 schema。
 
 ## 实现

@@ -13,8 +13,6 @@ This file is the extension entry point. It registers commands and routes command
 
 - replacerules.runRule -> runSingleRule
 - replacerules.runRuleset -> runRuleset
-- replacerules.pasteAndReplace -> pasteReplace
-- replacerules.pasteAndReplaceRuleset -> pasteReplaceRuleset
 - replacerules.stringifyRegex -> stringifyRegex
 
 ## Command routing behavior

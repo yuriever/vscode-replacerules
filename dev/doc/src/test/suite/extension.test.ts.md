@@ -7,14 +7,13 @@ This file contains regression tests for command-level extension behavior.
 ## Test strategy
 
 The tests execute real VS Code commands against in-memory editors and settings.
-This validates integration between command registration, config parsing, replace logic, and clipboard paths.
+This validates integration between command registration, config parsing, and replace logic.
 
 ## Covered scenarios
 
 1. runRule replaces the full document when there is a single empty selection.
 2. runRuleset applies multiple rules in sequence.
-3. pasteAndReplace transforms clipboard text before insertion and does not mutate clipboard contents.
-4. pasteAndReplaceRuleset applies chained clipboard transformations.
+3. Removed clipboard replace commands are no longer registered.
 
 ## Isolation helpers
 

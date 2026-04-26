@@ -22,20 +22,6 @@ export default class ReplaceRulesEditProvider {
         });
     }
 
-    public pickRuleAndPaste() {
-        let rules = this.getQPRules();
-        vscode.window.showQuickPick(rules).then(qpItem => {
-            if (qpItem) this.pasteReplace(qpItem.key);
-        });
-    }
-
-    public pickRulesetAndPaste() {
-        let rulesets = this.getQPRulesets();
-        vscode.window.showQuickPick(rulesets).then(qpItem => {
-            if (qpItem) this.pasteReplaceRuleset(qpItem.key);
-        });
-    }
-
     private getQPRules(): any[] {
         let language = this.textEditor.document.languageId;
         let configRules = this.configRules;
@@ -117,21 +103,6 @@ export default class ReplaceRulesEditProvider {
         }
     }
 
-    public pasteReplace(ruleName: string) {
-        let rule = this.configRules[ruleName];
-        if (rule) {
-            let language = this.textEditor.document.languageId;
-            if (Array.isArray(rule.languages) && rule.languages.indexOf(language) === -1) {
-                return;
-            }
-            try {
-                this.doPasteReplace(new ReplaceRule(rule));
-            } catch (err: any) {
-                Window.showErrorMessage('Error executing rule ' + ruleName + ': ' + err.message);
-            }
-        }
-    }
-
     private async doReplace(rule: ReplaceRule) {
         let e = this.textEditor;
         let d = e.document;
@@ -150,43 +121,6 @@ export default class ReplaceRulesEditProvider {
             }
         }
         return;
-    }
-
-    private async doPasteReplace(rule: ReplaceRule) {
-        let e = this.textEditor;
-        let editOptions = { undoStopBefore: false, undoStopAfter: false };
-        let clip = stripCR(await vscode.env.clipboard.readText());
-        for (const r of rule.steps) {
-            clip = clip.replace(r.find, r.replace);
-        }
-        await e.edit((edit) => {
-            for (const x of e.selections) {
-                edit.replace(new Range(x.start, x.end), clip);
-            }
-        }, editOptions);
-        return;
-    }
-
-    public pasteReplaceRuleset(rulesetName: string) {
-        let language = this.textEditor.document.languageId;
-        let ruleset = this.configRulesets[rulesetName];
-        if (ruleset) {
-            let ruleObject = new ReplaceRule({ find: '' });
-            try {
-                ruleset.rules.forEach((r: string) => {
-                    let rule = this.configRules[r];
-                    if (rule) {
-                        if (Array.isArray(rule.languages) && rule.languages.indexOf(language) === -1) {
-                            return;
-                        }
-                        ruleObject.appendRule(this.configRules[r])
-                    }
-                });
-                if (ruleObject) this.doPasteReplace(ruleObject);
-            } catch (err: any) {
-                Window.showErrorMessage('Error executing ruleset ' + rulesetName + ': ' + err.message);
-            }
-        }
     }
 
     constructor(textEditor: TextEditor) {

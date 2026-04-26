@@ -24,8 +24,6 @@
     "activationEvents": [
         "onCommand:replacerules.runRule",
         "onCommand:replacerules.runRuleset",
-        "onCommand:replacerules.pasteAndReplace",
-        "onCommand:replacerules.pasteAndReplaceRuleset",
         "onCommand:replacerules.stringifyRegex"
     ],
     "main": "./out/extension.js",
@@ -42,33 +40,9 @@
                 "category": "Replace Rules"
             },
             {
-                "command": "replacerules.pasteAndReplace",
-                "title": "Run Replace Rule on clipboard and paste...",
-                "category": "Replace Rules"
-            },
-            {
-                "command": "replacerules.pasteAndReplaceRuleset",
-                "title": "Run Replace Ruleset on clipboard and paste...",
-                "category": "Replace Rules"
-            },
-            {
                 "command": "replacerules.stringifyRegex",
                 "title": "Stringify regular expression",
                 "category": "Replace Rules"
-            }
-        ],
-        "keybindings": [
-            {
-                "command": "replacerules.runRule",
-                "key": "ctrl+alt+r",
-                "mac": "cmd+alt+r",
-                "when": "editorTextFocus"
-            },
-            {
-                "command": "replacerules.pasteAndReplace",
-                "key": "ctrl+alt+v",
-                "mac": "cmd+alt+v",
-                "when": "editorTextFocus"
             }
         ],
         "configuration": {

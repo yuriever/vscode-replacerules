@@ -73,53 +73,10 @@ suite('Extension Test Suite', () => {
 		await waitForDocumentText(editor.document, 'baz');
 	});
 
-	test('pasteAndReplace transforms clipboard and keeps clipboard unchanged', async () => {
-		const clipboardText = 'hello world';
-		await vscode.env.clipboard.writeText(clipboardText);
-
-		await setReplaceRulesConfig({
-			'Dash spaces': {
-				find: '\\s+',
-				replace: '-',
-				flags: 'g'
-			}
-		}, {});
-
-		const editor = await openEditor('X');
-		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 1));
-
-		await vscode.commands.executeCommand('replacerules.pasteAndReplace', { ruleName: 'Dash spaces' });
-		await waitForDocumentText(editor.document, 'hello-world');
-
-		const currentClipboard = await vscode.env.clipboard.readText();
-		assert.strictEqual(currentClipboard, clipboardText);
-	});
-
-	test('pasteAndReplaceRuleset applies chained clipboard replacements', async () => {
-		await vscode.env.clipboard.writeText('xx');
-
-		await setReplaceRulesConfig({
-			'X to Y': {
-				find: 'x',
-				replace: 'y',
-				flags: 'g'
-			},
-			'YY to Z': {
-				find: 'yy',
-				replace: 'z',
-				flags: 'g'
-			}
-		}, {
-			'Clipboard chain': {
-				rules: ['X to Y', 'YY to Z']
-			}
-		});
-
-		const editor = await openEditor('_');
-		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 1));
-
-		await vscode.commands.executeCommand('replacerules.pasteAndReplaceRuleset', { rulesetName: 'Clipboard chain' });
-		await waitForDocumentText(editor.document, 'z');
+	test('clipboard replace commands are not registered', async () => {
+		const commands = await vscode.commands.getCommands(true);
+		assert.strictEqual(commands.includes('replacerules.pasteAndReplace'), false);
+		assert.strictEqual(commands.includes('replacerules.pasteAndReplaceRuleset'), false);
 	});
 });
 

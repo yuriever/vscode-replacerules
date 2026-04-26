@@ -10,7 +10,7 @@ Inspired by the Sublime Text plugin [RegReplace](https://github.com/facelessuser
 
 1. Add the rules you want to use in your `settings.json` (open the Command Palette and select `Preferences: open settings (JSON)`)
 
-2. Press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>R</kbd> and select the rule you'd like to run across your selection or document. Alternatively, open the Command Palette (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>) and select **Replace Rules: Run Rule...**
+2. Open the Command Palette (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>) and select **Replace Rules: Run Rule...**, then choose the rule to run across the selection or document.
 
 ## Configuration options
 
@@ -34,8 +34,6 @@ Inspired by the Sublime Text plugin [RegReplace](https://github.com/facelessuser
 - `rules` - (Required) An array of rules to be run when the ruleset is called.
 
 ## Example configuration
-
-**Note:** The Replace Rules configuration object format changed in version 0.2.0. If you encounter issues with rules not loading and have not used the extension since the format change, use [this tool](https://bhughes339.github.io/vscode-replacerules/convert.html) to convert your rules object to the new format.
 
 ```json
 "replacerules.rules": {
@@ -62,58 +60,7 @@ Inspired by the Sublime Text plugin [RegReplace](https://github.com/facelessuser
 }
 ```
 
-## Keyboard shortcuts
-
-Bind a specific rule or ruleset to a key combination by adding an entry to `keybindings.json`
-
-Rule:
-
-```json
-{
-    "key": "ctrl+shift+/",
-    "command": "replacerules.runRule",
-    "when": "editorTextFocus && !editorReadonly",
-    "args": {
-        "ruleName": "Remove trailing and leading whitespace"
-    }
-}
-```
-
-Ruleset:
-
-```json
-{
-    "key": "ctrl+shift+]",
-    "command": "replacerules.runRuleset",
-    "when": "editorTextFocus && !editorReadonly",
-    "args": {
-        "rulesetName": "Remove lots of stuff"
-    }
-}
-```
-
-Clipboard Replace:
-
-```json
-{
-    "key": "ctrl+shift+]",
-    "command": "replacerules.pasteAndReplace",
-    "when": "editorTextFocus && !editorReadonly",
-    "args": {
-        "ruleName": "Remove trailing and leading whitespace"
-    }
-}
-```
-
 ## Other features
-
-### Replace clipboard and paste
-
-Run a Replace Rule on the clipboard's current contents and pastes the new text into the document. Does not modify the clipboard contents.
-
-- Command palette: **Replace Rules: Run Replace Rule on clipboard and paste...**
-- Keyboard shortcut: <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd>
-    - Additionally, custom keyboard shortcuts can be added to run a specific rule on the clipboard and paste. See the "Clipboard Replace" section under "Keyboard Shortcuts" above.
 
 ### Stringify regular expression
 

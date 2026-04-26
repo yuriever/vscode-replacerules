@@ -19,12 +19,8 @@ ReplaceRulesEditProvider
 
 - pickRuleAndRun()
 - pickRulesetAndRun()
-- pickRuleAndPaste()
-- pickRulesetAndPaste()
 - runSingleRule(ruleName)
 - runRuleset(rulesetName)
-- pasteReplace(ruleName)
-- pasteReplaceRuleset(rulesetName)
 
 ## Selection and menu helpers
 
@@ -33,10 +29,9 @@ ReplaceRulesEditProvider
 
 ## Replace execution model
 
-There are two execution paths:
+There is one execution path:
 
 - doReplace(rule): Runs replacements on the active document or selections.
-- doPasteReplace(rule): Runs replacements on clipboard text, then inserts result into selections.
 
 ### Full-document behavior
 

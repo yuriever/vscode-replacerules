@@ -5,8 +5,6 @@ import ReplaceRulesEditProvider from './editProvider';
 export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(vscode.commands.registerTextEditorCommand('replacerules.runRule', runSingleRule));
     context.subscriptions.push(vscode.commands.registerTextEditorCommand('replacerules.runRuleset', runRuleset));
-    context.subscriptions.push(vscode.commands.registerTextEditorCommand('replacerules.pasteAndReplace', pasteReplace));
-    context.subscriptions.push(vscode.commands.registerTextEditorCommand('replacerules.pasteAndReplaceRuleset', pasteReplaceRuleset));
     context.subscriptions.push(vscode.commands.registerCommand('replacerules.stringifyRegex', stringifyRegex));
 }
 
@@ -32,28 +30,6 @@ function runRuleset(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit,
         editP.runRuleset(rulesetName);
     } else {
         editP.pickRulesetAndRun();
-    }
-    return;
-}
-
-function pasteReplace(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, args?: any) {
-    let editP = new ReplaceRulesEditProvider(textEditor);
-    if (args) {
-        let ruleName = args['ruleName'];
-        editP.pasteReplace(ruleName);
-    } else {
-        editP.pickRuleAndPaste();
-    }
-    return;
-}
-
-function pasteReplaceRuleset(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, args?: any) {
-    let editP = new ReplaceRulesEditProvider(textEditor);
-    if (args) {
-        let rulesetName = args['rulesetName'];
-        editP.pasteReplaceRuleset(rulesetName);
-    } else {
-        editP.pickRulesetAndPaste();
     }
     return;
 }
