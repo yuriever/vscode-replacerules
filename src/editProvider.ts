@@ -31,14 +31,12 @@ type RegexReplaceStep = {
     kind: 'regexReplace';
     find: RegExp;
     replace: string;
-    post: PostProcessor[];
 };
 
 type LiteralMapStep = {
     kind: 'literalMap';
     find: RegExp;
     replacements: Record<string, string>;
-    post: PostProcessor[];
 };
 
 type ExecutionStep = RegexReplaceStep | LiteralMapStep;
@@ -85,14 +83,25 @@ type RawTextReplaceRuleConfig = {
     rulesets?: unknown;
 };
 
-type PostProcessor = {
-    type: 'alignLine' | 'expandTab' | 'indentLine' | 'removeBlankLine';
-};
+type IndentLineMode = 'auto' | 'block' | 'inline';
+
+type PostProcessor =
+    | {
+        type: 'expandTab';
+    }
+    | {
+        type: 'removeBlankLine';
+    }
+    | {
+        type: 'indentLine';
+        mode: IndentLineMode;
+    };
 
 type PostProcessContext = {
     tabSize: number;
-    indentPrefix: string;
-    alignPrefix: string;
+    linePrefix: string;
+    blockIndentPrefix: string;
+    inlineIndentPrefix: string;
 };
 
 type ReplacementCallbackArg = string | undefined | number | NamedGroupMap;
@@ -176,7 +185,7 @@ export default class TextReplaceRuleEditProvider {
         }
 
         try {
-            await this.doReplace(rule.steps);
+            await this.doReplace([rule]);
         } catch (err: any) {
             Window.showErrorMessage('Error executing rule ' + ruleName + ': ' + err.message);
         }
@@ -189,26 +198,26 @@ export default class TextReplaceRuleEditProvider {
         }
 
         let languageId = this.textEditor.document.languageId;
-        let steps: ExecutionStep[] = [];
+        let rules: RuleDefinition[] = [];
         for (const ruleName of rulePipeline.rules) {
             let rule = this.config.rules[ruleName];
             if (ruleMatchesLanguage(rule, languageId)) {
-                steps.push(...rule.steps);
+                rules.push(rule);
             }
         }
 
-        if (steps.length === 0) {
+        if (rules.length === 0) {
             return;
         }
 
         try {
-            await this.doReplace(steps);
+            await this.doReplace(rules);
         } catch (err: any) {
             Window.showErrorMessage('Error executing rule pipeline ' + rulePipelineName + ': ' + err.message);
         }
     }
 
-    private async doReplace(steps: ExecutionStep[]) {
+    private async doReplace(rules: RuleDefinition[]) {
         let editor = this.textEditor;
         let document = editor.document;
         let targets = getReplaceTargets(editor, document);
@@ -217,7 +226,7 @@ export default class TextReplaceRuleEditProvider {
         for (const target of targets) {
             let originalText = document.getText(target.range);
             let context = getPostProcessContext(editor, target.range);
-            let updatedText = applySteps(originalText, steps, context);
+            let updatedText = applyRules(originalText, rules, context);
             if (updatedText !== originalText) {
                 edits.push({
                     range: target.range,
@@ -283,39 +292,74 @@ const getReplaceTargets = (editor: TextEditor, document: vscode.TextDocument): R
     })).sort((left, right) => right.startOffset - left.startOffset);
 }
 
-const applySteps = (originalText: string, steps: ExecutionStep[], context: PostProcessContext) => {
+type ApplyStepResult = {
+    value: string;
+    didMatch: boolean;
+};
+
+const applyRules = (originalText: string, rules: RuleDefinition[], context: PostProcessContext) => {
     let updatedText = originalText;
-    for (const step of steps) {
-        updatedText = applyStep(updatedText, step, context);
+    for (const rule of rules) {
+        updatedText = applyRule(updatedText, rule, context);
     }
     return updatedText;
 }
 
-const applyStep = (originalText: string, step: ExecutionStep, context: PostProcessContext) => {
+const applyRule = (originalText: string, rule: RuleDefinition, context: PostProcessContext) => {
     let normalizedOriginal = normalizeLineEndings(originalText);
-    let normalizedUpdated = step.kind === 'regexReplace'
-        ? applyRegexReplaceStep(normalizedOriginal, step, context)
-        : applyLiteralMapStep(normalizedOriginal, step, context);
+    let { value: normalizedUpdated, didMatch } = applySteps(normalizedOriginal, rule.steps);
 
-    if (normalizedUpdated === normalizedOriginal) {
+    if (!didMatch) {
         return originalText;
     }
 
+    normalizedUpdated = applyPostProcessors(normalizedUpdated, rule.post, context);
     return restoreLineEndings(originalText, normalizedUpdated);
 }
 
-const applyRegexReplaceStep = (originalText: string, step: RegexReplaceStep, context: PostProcessContext) => {
-    return originalText.replace(step.find, (...args: ReplacementCallbackArg[]) => {
-        let { match, captures, offset, input, groups } = parseReplacementCallbackArgs(args);
-        let updatedMatch = expandReplacementString(step.replace, match, captures, offset, input, groups);
-        return applyPostProcessors(updatedMatch, step.post, context);
-    });
+const applySteps = (originalText: string, steps: ExecutionStep[]): ApplyStepResult => {
+    let updatedText = originalText;
+    let didMatch = false;
+
+    for (const step of steps) {
+        let stepResult = step.kind === 'regexReplace'
+            ? applyRegexReplaceStep(updatedText, step)
+            : applyLiteralMapStep(updatedText, step);
+        updatedText = stepResult.value;
+        didMatch = didMatch || stepResult.didMatch;
+    }
+
+    return {
+        value: updatedText,
+        didMatch
+    };
 }
 
-const applyLiteralMapStep = (originalText: string, step: LiteralMapStep, context: PostProcessContext) => {
-    return originalText.replace(step.find, (match) => {
-        return applyPostProcessors(step.replacements[match], step.post, context);
+const applyRegexReplaceStep = (originalText: string, step: RegexReplaceStep): ApplyStepResult => {
+    let didMatch = false;
+    let updatedText = originalText.replace(step.find, (...args: ReplacementCallbackArg[]) => {
+        didMatch = true;
+        let { match, captures, offset, input, groups } = parseReplacementCallbackArgs(args);
+        return expandReplacementString(step.replace, match, captures, offset, input, groups);
     });
+
+    return {
+        value: updatedText,
+        didMatch
+    };
+}
+
+const applyLiteralMapStep = (originalText: string, step: LiteralMapStep): ApplyStepResult => {
+    let didMatch = false;
+    let updatedText = originalText.replace(step.find, (match) => {
+        didMatch = true;
+        return step.replacements[match];
+    });
+
+    return {
+        value: updatedText,
+        didMatch
+    };
 }
 
 const normalizeLineEndings = (str: string) => {
@@ -331,11 +375,12 @@ const restoreLineEndings = (originalText: string, updatedText: string) => {
 const getPostProcessContext = (editor: TextEditor, targetRange: Range): PostProcessContext => {
     let tabSizeOption = editor.options.tabSize;
     let lineText = editor.document.lineAt(targetRange.start.line).text;
-    let rawPrefix = lineText.slice(0, targetRange.start.character);
+    let linePrefix = lineText.slice(0, targetRange.start.character);
     return {
         tabSize: typeof tabSizeOption === 'number' && tabSizeOption > 0 ? tabSizeOption : 4,
-        indentPrefix: /^\s*$/.test(rawPrefix) ? rawPrefix : '',
-        alignPrefix: Array.from(rawPrefix, (ch) => /\s/.test(ch) ? ch : ' ').join('')
+        linePrefix,
+        blockIndentPrefix: /^\s*$/.test(linePrefix) ? linePrefix : '',
+        inlineIndentPrefix: Array.from(linePrefix, (ch) => /\s/.test(ch) ? ch : ' ').join('')
     };
 }
 
@@ -434,14 +479,26 @@ const applyPostProcessors = (value: string, processors: PostProcessor[], context
 
 const applyPostProcessor = (value: string, processor: PostProcessor, context: PostProcessContext) => {
     switch (processor.type) {
-        case 'alignLine':
-            return prefixSubsequentLines(value, context.alignPrefix);
         case 'expandTab':
             return value.replace(/\t/g, ' '.repeat(context.tabSize));
         case 'indentLine':
-            return prefixSubsequentLines(value, context.indentPrefix);
+            return applyIndentLine(value, processor.mode, context);
         case 'removeBlankLine':
             return value.split('\n').filter((line) => !/^\s*$/.test(line)).join('\n');
+    }
+}
+
+const applyIndentLine = (value: string, mode: IndentLineMode, context: PostProcessContext) => {
+    switch (mode) {
+        case 'block':
+            return prefixSubsequentLines(value, context.blockIndentPrefix);
+        case 'inline':
+            return prefixSubsequentLines(value, context.inlineIndentPrefix);
+        case 'auto':
+            return prefixSubsequentLines(
+                value,
+                /^\s*$/.test(context.linePrefix) ? context.blockIndentPrefix : context.inlineIndentPrefix
+            );
     }
 }
 
@@ -610,11 +667,28 @@ const parsePostProcessors = (ruleName: string, rawPost: unknown): PostProcessor[
     }
 
     return rawPost.map((processor) => {
-        if (processor !== 'alignLine' && processor !== 'expandTab' && processor !== 'indentLine' && processor !== 'removeBlankLine') {
-            throw new Error(`Rule ${ruleName} field "post" only supports "alignLine", "expandTab", "indentLine", and "removeBlankLine"`);
+        if (processor === 'expandTab' || processor === 'removeBlankLine') {
+            return { type: processor };
         }
 
-        return { type: processor };
+        if (typeof processor !== 'object' || processor === null || Array.isArray(processor)) {
+            throw new Error(`Rule ${ruleName} field "post" only supports "expandTab", "removeBlankLine", and { "type": "indentLine", "mode": "block" | "inline" | "auto" }`);
+        }
+
+        let rawType = (processor as { type?: unknown }).type;
+        if (rawType !== 'indentLine') {
+            throw new Error(`Rule ${ruleName} field "post" only supports "expandTab", "removeBlankLine", and { "type": "indentLine", "mode": "block" | "inline" | "auto" }`);
+        }
+
+        let rawMode = (processor as { mode?: unknown }).mode;
+        if (rawMode !== undefined && rawMode !== 'auto' && rawMode !== 'block' && rawMode !== 'inline') {
+            throw new Error(`Rule ${ruleName} field "post" uses unsupported indentLine mode: ${JSON.stringify(rawMode)}`);
+        }
+
+        return {
+            type: 'indentLine',
+            mode: rawMode ?? 'auto'
+        };
     });
 }
 
@@ -637,8 +711,7 @@ const parseRegexReplaceRule = (
     let steps = finds.map((find, index) => ({
         kind: 'regexReplace' as const,
         find: new RegExp(find, normalizeFlag(flags[index])),
-        replace: replacements[index] || '',
-        post
+        replace: replacements[index] || ''
     }));
 
     return {
@@ -698,8 +771,7 @@ const parseLiteralMapRule = (
         steps: [{
             kind: 'literalMap',
             find: matcher,
-            replacements,
-            post
+            replacements
         }]
     };
 }

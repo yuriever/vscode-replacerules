@@ -181,14 +181,34 @@ suite('Extension Test Suite', () => {
 		assert.strictEqual(editor.document.getText(), '  [\n    x\n  ]');
 	});
 
-	test('runRule applies indentLine before expandTab for whitespace-indented selections', async () => {
+	test('runRule executes post after all regexReplace steps complete', async () => {
+		await setTextReplaceRuleConfig(await writeConfigFile({
+			rules: {
+				'Finalize after all steps': {
+					type: 'regexReplace',
+					find: ['^x$', '^\\{\\n\\n\\titem\\n\\}$'],
+					replace: ['{\n\n\titem\n}', '[\n\n\titem\n]'],
+					post: ['removeBlankLine', 'expandTab']
+				}
+			}
+		}));
+
+		const editor = await openEditor('x');
+		editor.options = { tabSize: 2, insertSpaces: true };
+		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
+
+		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Finalize after all steps' });
+		assert.strictEqual(editor.document.getText(), '[\n  item\n]');
+	});
+
+	test('runRule applies indentLine block mode before expandTab for whitespace-indented selections', async () => {
 		await setTextReplaceRuleConfig(await writeConfigFile({
 			rules: {
 				'Wrap selection as equation': {
 					type: 'regexReplace',
 					find: '^(.*)$',
 					replace: '\\begin{equation}\n\t$1\n\\end{equation}',
-					post: ['indentLine', 'expandTab']
+					post: [{ type: 'indentLine', mode: 'block' }, 'expandTab']
 				}
 			}
 		}));
@@ -201,14 +221,14 @@ suite('Extension Test Suite', () => {
 		assert.strictEqual(editor.document.getText(), '    \\begin{equation}\n        a=b\n    \\end{equation}');
 	});
 
-	test('runRule skips indentLine when selection prefix contains non-whitespace', async () => {
+	test('runRule leaves indentLine block mode unchanged when selection prefix contains non-whitespace', async () => {
 		await setTextReplaceRuleConfig(await writeConfigFile({
 			rules: {
 				'Wrap selection as equation': {
 					type: 'regexReplace',
 					find: '^(.*)$',
 					replace: '\\begin{equation}\n\t$1\n\\end{equation}',
-					post: ['indentLine', 'expandTab']
+					post: [{ type: 'indentLine', mode: 'block' }, 'expandTab']
 				}
 			}
 		}));
@@ -221,14 +241,14 @@ suite('Extension Test Suite', () => {
 		assert.strictEqual(editor.document.getText(), 'xxxx \\begin{equation}\n    (a+b)\n\\end{equation} xxxx');
 	});
 
-	test('runRule applies alignLine before expandTab for inline selections', async () => {
+	test('runRule applies indentLine inline mode before expandTab for inline selections', async () => {
 		await setTextReplaceRuleConfig(await writeConfigFile({
 			rules: {
 				'Inline LR block': {
 					type: 'regexReplace',
 					find: '^\\((.*)\\)$',
 					replace: '\\LR{\n\t$1\n}',
-					post: ['alignLine', 'expandTab']
+					post: [{ type: 'indentLine', mode: 'inline' }, 'expandTab']
 				}
 			}
 		}));
@@ -239,6 +259,46 @@ suite('Extension Test Suite', () => {
 
 		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Inline LR block' });
 		assert.strictEqual(editor.document.getText(), '    xxxx \\LR{\n             a+b\n         } xxxx');
+	});
+
+	test('runRule applies indentLine auto mode as block for whitespace-indented selections', async () => {
+		await setTextReplaceRuleConfig(await writeConfigFile({
+			rules: {
+				'Auto block selection': {
+					type: 'regexReplace',
+					find: '^(.*)$',
+					replace: '{\n\t$1\n}',
+					post: [{ type: 'indentLine', mode: 'auto' }, 'expandTab']
+				}
+			}
+		}));
+
+		const editor = await openEditor('    a=b');
+		editor.options = { tabSize: 4, insertSpaces: true };
+		editor.selection = new vscode.Selection(new vscode.Position(0, 4), new vscode.Position(0, 7));
+
+		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Auto block selection' });
+		assert.strictEqual(editor.document.getText(), '    {\n        a=b\n    }');
+	});
+
+	test('runRule applies indentLine auto mode as inline for inline selections', async () => {
+		await setTextReplaceRuleConfig(await writeConfigFile({
+			rules: {
+				'Auto inline selection': {
+					type: 'regexReplace',
+					find: '^x$',
+					replace: '{\n\titem\n}',
+					post: [{ type: 'indentLine', mode: 'auto' }, 'expandTab', 'removeBlankLine']
+				}
+			}
+		}));
+
+		const editor = await openEditor('foo x bar');
+		editor.options = { tabSize: 2, insertSpaces: true };
+		editor.selection = new vscode.Selection(new vscode.Position(0, 4), new vscode.Position(0, 5));
+
+		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Auto inline selection' });
+		assert.strictEqual(editor.document.getText(), 'foo {\n      item\n    } bar');
 	});
 
 	test('runRule applies expandTab post-processing to literalMap results without token expansion', async () => {
@@ -301,14 +361,14 @@ suite('Extension Test Suite', () => {
 		assert.strictEqual(editor.document.getText(), '[\n  item\n]');
 	});
 
-	test('runRule applies alignLine, expandTab, and removeBlankLine in listed order', async () => {
+	test('runRule applies indentLine auto, expandTab, and removeBlankLine in listed order', async () => {
 		await setTextReplaceRuleConfig(await writeConfigFile({
 			rules: {
 				'Inline block cleanup': {
 					type: 'regexReplace',
 					find: '^x$',
 					replace: '{\n\n\titem\n}',
-					post: ['alignLine', 'expandTab', 'removeBlankLine']
+					post: [{ type: 'indentLine', mode: 'auto' }, 'expandTab', 'removeBlankLine']
 				}
 			}
 		}));
@@ -680,7 +740,7 @@ suite('Extension Test Suite', () => {
 		assert.strictEqual(editor.document.getText(), 'sample text');
 	});
 
-	test('runRule shows an error for unsupported post processors', async () => {
+	test('runRule shows an error for unsupported post processor objects', async () => {
 		await setTextReplaceRuleConfig(await writeConfigFile({
 			rules: {
 				Broken: {
@@ -688,6 +748,81 @@ suite('Extension Test Suite', () => {
 					find: 'a',
 					replace: 'b',
 					post: [{ type: 'expandTab', tabSize: 4 }]
+				}
+			}
+		}));
+
+		const editor = await openEditor('sample text');
+		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
+
+		const errors = await captureErrorMessages(async () => {
+			await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Broken' });
+			await delay(25);
+		});
+
+		assert.strictEqual(errors.length, 1);
+		assert.match(errors[0], /^Error loading text-replace-rule\.configPath:/);
+		assert.strictEqual(editor.document.getText(), 'sample text');
+	});
+
+	test('runRule shows an error for the removed alignLine post processor', async () => {
+		await setTextReplaceRuleConfig(await writeConfigFile({
+			rules: {
+				Broken: {
+					type: 'regexReplace',
+					find: 'a',
+					replace: 'b',
+					post: ['alignLine']
+				}
+			}
+		}));
+
+		const editor = await openEditor('sample text');
+		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
+
+		const errors = await captureErrorMessages(async () => {
+			await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Broken' });
+			await delay(25);
+		});
+
+		assert.strictEqual(errors.length, 1);
+		assert.match(errors[0], /^Error loading text-replace-rule\.configPath:/);
+		assert.strictEqual(editor.document.getText(), 'sample text');
+	});
+
+	test('runRule shows an error for legacy string indentLine post processors', async () => {
+		await setTextReplaceRuleConfig(await writeConfigFile({
+			rules: {
+				Broken: {
+					type: 'regexReplace',
+					find: 'a',
+					replace: 'b',
+					post: ['indentLine']
+				}
+			}
+		}));
+
+		const editor = await openEditor('sample text');
+		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
+
+		const errors = await captureErrorMessages(async () => {
+			await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Broken' });
+			await delay(25);
+		});
+
+		assert.strictEqual(errors.length, 1);
+		assert.match(errors[0], /^Error loading text-replace-rule\.configPath:/);
+		assert.strictEqual(editor.document.getText(), 'sample text');
+	});
+
+	test('runRule shows an error for unsupported indentLine modes', async () => {
+		await setTextReplaceRuleConfig(await writeConfigFile({
+			rules: {
+				Broken: {
+					type: 'regexReplace',
+					find: 'a',
+					replace: 'b',
+					post: [{ type: 'indentLine', mode: 'diagonal' }]
 				}
 			}
 		}));

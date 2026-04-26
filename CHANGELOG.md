@@ -2,6 +2,12 @@
 
 TextReplaceRule started as a fork of `bhughes339/vscode-replacerules`, but `1.0.0` marks the start of an independent product line. Entries from `1.0.0` onward describe TextReplaceRule itself. Older `0.x` entries are kept below as legacy fork history and do not define the new configuration model or naming scheme.
 
+## 1.0.5
+
+- Change `post` from step-local processing to rule-final processing. Each rule now runs all replace steps first, then applies `post` once to the final rule result.
+- Replace the separate `alignLine` processor with `indentLine` modes: `block`, `inline`, and `auto`.
+- Update multiline formatting docs and tests to use the new `indentLine(mode)` model.
+
 ## 1.0.4
 
 - Add `post: ["indentLine"]` for multiline replacements that should inherit indentation from a whitespace-only selection prefix.
