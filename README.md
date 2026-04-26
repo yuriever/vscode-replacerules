@@ -1,6 +1,6 @@
 # TextReplaceRule
 
-**Originally forked from [bhughes339/vscode-replacerules](https://github.com/bhughes339/vscode-replacerules). TextReplaceRule is now maintained as an independent extension.**
+**Originally forked from [bhughes339/vscode-replacerules](https://github.com/bhughes339/vscode-replacerules). TextReplaceRule is now an independent extension.**
 
 TextReplaceRule runs named text-transformation rules from an external JSON or JSONC file. Rules can use either regular expressions or literal lookup maps, and rule pipelines can chain multiple rules in order.
 
