@@ -2,14 +2,14 @@
     "name": "replacerules",
     "displayName": "Replace Rules",
     "description": "Create search/replace rules using Javascript regular expressions",
-    "version": "0.4.2",
-    "publisher": "bhughes339",
+    "version": "0.5.0",
+    "publisher": "Yuriever",
     "engines": {
-        "vscode": "^1.90.0"
+        "vscode": "^1.116.0"
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/bhughes339/vscode-replacerules.git"
+        "url": "https://github.com/yuriever/vscode-replacerules.git"
     },
     "categories": [
         "Other"

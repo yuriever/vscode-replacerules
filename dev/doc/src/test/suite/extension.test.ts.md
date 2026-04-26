@@ -22,6 +22,7 @@ This validates integration between command registration, config parsing, and rep
 9. runRule reports invalid regex config errors without modifying the document.
 10. runRule reports missing `configPath` file errors without modifying the document.
 11. parseRegexInput accepts `/pattern/flags` and rejects malformed literals.
+12. package metadata keeps `engines.vscode` aligned with `@types/vscode` baseline.
 
 ## Isolation helpers
 

@@ -262,6 +262,17 @@ suite('Extension Test Suite', () => {
 		assert.throws(() => parseRegexInput('/foo'), /Invalid regular expression literal/);
 		assert.throws(() => parseRegexInput('/foo/gg'), /Invalid flags supplied to RegExp constructor/);
 	});
+
+	test('package metadata baseline matches current VS Code types', async () => {
+		const packagePath = path.resolve(__dirname, '../../../package.json');
+		const manifest = JSON.parse(await fs.readFile(packagePath, 'utf8')) as {
+			engines?: { vscode?: string };
+			devDependencies?: { [name: string]: string };
+		};
+
+		assert.strictEqual(manifest.engines?.vscode, '^1.116.0');
+		assert.strictEqual(manifest.devDependencies?.['@types/vscode'], '^1.116.0');
+	});
 });
 
 async function setReplaceRulesConfig(configPath: unknown): Promise<void> {
