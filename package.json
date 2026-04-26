@@ -2,7 +2,7 @@
     "name": "text-replace-rule",
     "displayName": "TextReplaceRule",
     "description": "Run regexReplace/literalMap text rewrite pipelines from config",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "publisher": "Yuriever",
     "engines": {
         "vscode": "^1.116.0"

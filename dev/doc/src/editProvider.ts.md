@@ -32,7 +32,7 @@ Core engine for the extension.
     - `find`, `replace`, `flag`, optional `language`, optional `post`
 - `literalMap`
     - `map`, optional `language`, optional `post`
-- `post` currently supports only `["expandTab"]`
+- `post` supports `"expandTab"` and `"removeBlankLine"` processors, in listed order
 
 ## Notes
 

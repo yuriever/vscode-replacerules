@@ -1,7 +1,6 @@
 out
 node_modules
 .directory
-AGENTS.md
 .vscode-test
 .DS_Store
 *.vsix

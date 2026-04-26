@@ -82,7 +82,7 @@ type RawTextReplaceRuleConfig = {
 };
 
 type PostProcessor = {
-    type: 'expandTab';
+    type: 'expandTab' | 'removeBlankLine';
 };
 
 type PostProcessContext = {
@@ -426,6 +426,8 @@ const applyPostProcessor = (value: string, processor: PostProcessor, context: Po
     switch (processor.type) {
         case 'expandTab':
             return value.replace(/\t/g, ' '.repeat(context.tabSize));
+        case 'removeBlankLine':
+            return value.split('\n').filter((line) => !/^\s*$/.test(line)).join('\n');
     }
 }
 
@@ -567,11 +569,17 @@ const parsePostProcessors = (ruleName: string, rawPost: unknown): PostProcessor[
         return [];
     }
 
-    if (!Array.isArray(rawPost) || rawPost.length !== 1 || rawPost[0] !== 'expandTab') {
-        throw new Error(`Rule ${ruleName} field "post" only supports ["expandTab"]`);
+    if (!Array.isArray(rawPost) || rawPost.length === 0) {
+        throw new Error(`Rule ${ruleName} field "post" must be a non-empty array of supported post processors`);
     }
 
-    return [{ type: 'expandTab' }];
+    return rawPost.map((processor) => {
+        if (processor !== 'expandTab' && processor !== 'removeBlankLine') {
+            throw new Error(`Rule ${ruleName} field "post" only supports "expandTab" and "removeBlankLine"`);
+        }
+
+        return { type: processor };
+    });
 }
 
 const parseRegexReplaceRule = (

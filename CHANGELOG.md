@@ -4,7 +4,8 @@ TextReplaceRule started as a fork of `bhughes339/vscode-replacerules`, but `1.0.
 
 ## Unreleased
 
-- No unreleased changes
+- Add `post: ["removeBlankLine"]` to remove blank lines from replacement results, including whitespace-only lines.
+- Allow multiple supported `post` processors to run in listed order.
 
 ## 1.0.0
 

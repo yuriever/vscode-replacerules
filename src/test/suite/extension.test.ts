@@ -184,6 +184,45 @@ suite('Extension Test Suite', () => {
 		assert.strictEqual(editor.document.getText(), '  $&');
 	});
 
+	test('runRule applies removeBlankLine post-processing to regexReplace results', async () => {
+		await setTextReplaceRuleConfig(await writeConfigFile({
+			rules: {
+				'Latex equation without blank lines': {
+					type: 'regexReplace',
+					find: '^eq$',
+					replace: '\\begin{equation}\n\n  x = y\n  \n\\end{equation}',
+					post: ['removeBlankLine']
+				}
+			}
+		}));
+
+		const editor = await openEditor('eq');
+		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
+
+		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Latex equation without blank lines' });
+		assert.strictEqual(editor.document.getText(), '\\begin{equation}\n  x = y\n\\end{equation}');
+	});
+
+	test('runRule applies multiple post processors in order', async () => {
+		await setTextReplaceRuleConfig(await writeConfigFile({
+			rules: {
+				'Clean indented block': {
+					type: 'regexReplace',
+					find: '^block$',
+					replace: '[\n\n\titem\n]',
+					post: ['removeBlankLine', 'expandTab']
+				}
+			}
+		}));
+
+		const editor = await openEditor('block');
+		editor.options = { tabSize: 2, insertSpaces: true };
+		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
+
+		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Clean indented block' });
+		assert.strictEqual(editor.document.getText(), '[\n  item\n]');
+	});
+
 	test('runRule skips language-restricted rules for other languages', async () => {
 		await setTextReplaceRuleConfig(await writeConfigFile({
 			rules: {

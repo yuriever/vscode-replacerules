@@ -62,7 +62,7 @@ Supported fields:
 - `replace`: optional string or string array aligned with `find`
 - `flag`: optional string or string array aligned with `find`
 - `language`: optional array of VS Code language ids
-- `post`: optional, only `["expandTab"]` is supported now
+- `post`: optional array of post processors
 
 Behavior:
 
@@ -95,7 +95,7 @@ Supported fields:
 - `description`: optional display description
 - `map`: required object from literal source string to literal replacement string
 - `language`: optional array of VS Code language ids
-- `post`: optional, only `["expandTab"]` is valid
+- `post`: optional array of post processors
 
 Behavior:
 
@@ -130,17 +130,18 @@ Behavior:
 - Later rules see the output of earlier rules.
 - Missing rule references are rejected during config load.
 
-## `post`
+## Post-processing
 
-`post` is a per-replacement post-processing stage. Only one value is supported:
+`post` is a per-replacement post-processing stage. Values run in the order listed:
 
 ```json
 {
-  "post": ["expandTab"]
+  "post": ["removeBlankLine", "expandTab"]
 }
 ```
 
-`expandTab` replaces `\t` in each replacement result with spaces using the active editor `tabSize`.
+- `expandTab` replaces `\t` in each replacement result with spaces using the active editor `tabSize`.
+- `removeBlankLine` removes blank lines from each replacement result.
 
 ## Selection behavior
 
@@ -167,7 +168,7 @@ Behavior:
       "find": "^(\\s*)\\[(.*)\\](\\s*)$",
       "replace": "$1begin {\\n$1\\t$2\\n$1} end$3",
       "flag": "g",
-      "post": ["expandTab"]
+      "post": ["removeBlankLine", "expandTab"]
     },
     "status-keywords": {
       "type": "literalMap",
