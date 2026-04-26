@@ -14,7 +14,7 @@ suite('Extension Test Suite', () => {
 	let snapshot: ConfigSnapshot;
 
 	suiteSetup(async () => {
-		const config = vscode.workspace.getConfiguration('textReplaceRule');
+		const config = vscode.workspace.getConfiguration('text-replace-rule');
 		snapshot = {
 			configPath: config.inspect('configPath')?.globalValue
 		};
@@ -48,7 +48,7 @@ suite('Extension Test Suite', () => {
 		const editor = await openEditor('a cat and a hat');
 		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
 
-		await vscode.commands.executeCommand('textReplaceRule.runRule', { ruleName: 'Uppercase a' });
+		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Uppercase a' });
 		assert.strictEqual(editor.document.getText(), 'A cAt And A hAt');
 	});
 
@@ -78,7 +78,7 @@ suite('Extension Test Suite', () => {
 		const editor = await openEditor('foofoo');
 		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
 
-		await vscode.commands.executeCommand('textReplaceRule.runRulePipeline', { rulePipelineName: 'Collapse' });
+		await vscode.commands.executeCommand('text-replace-rule.runRulePipeline', { rulePipelineName: 'Collapse' });
 		assert.strictEqual(editor.document.getText(), 'baz');
 	});
 
@@ -100,7 +100,7 @@ suite('Extension Test Suite', () => {
 			new vscode.Selection(new vscode.Position(0, 8), new vscode.Position(0, 11))
 		];
 
-		await vscode.commands.executeCommand('textReplaceRule.runRule', { ruleName: 'Cat to Dog' });
+		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Cat to Dog' });
 		assert.strictEqual(editor.document.getText(), 'dog fox dog');
 	});
 
@@ -119,7 +119,7 @@ suite('Extension Test Suite', () => {
 		const editor = await openEditor('a\r\nb\r\n');
 		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
 
-		await vscode.commands.executeCommand('textReplaceRule.runRule', { ruleName: 'Uppercase b' });
+		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Uppercase b' });
 		assert.strictEqual(editor.document.getText(), 'a\r\nB\r\n');
 	});
 
@@ -138,7 +138,7 @@ suite('Extension Test Suite', () => {
 		const editor = await openEditor('a\r\nb\r\n');
 		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
 
-		await vscode.commands.executeCommand('textReplaceRule.runRule', { ruleName: 'No match' });
+		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'No match' });
 		assert.strictEqual(editor.document.getText(), 'a\r\nb\r\n');
 	});
 
@@ -159,7 +159,7 @@ suite('Extension Test Suite', () => {
 		editor.options = { tabSize: 2, insertSpaces: true };
 		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
 
-		await vscode.commands.executeCommand('textReplaceRule.runRule', { ruleName: 'Indent parentheses' });
+		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Indent parentheses' });
 		assert.strictEqual(editor.document.getText(), '  [\n    x\n  ]');
 	});
 
@@ -180,7 +180,7 @@ suite('Extension Test Suite', () => {
 		editor.options = { tabSize: 2, insertSpaces: true };
 		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
 
-		await vscode.commands.executeCommand('textReplaceRule.runRule', { ruleName: 'Literal token output' });
+		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Literal token output' });
 		assert.strictEqual(editor.document.getText(), '  $&');
 	});
 
@@ -200,7 +200,7 @@ suite('Extension Test Suite', () => {
 		const editor = await openEditor('a cat and a hat');
 		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
 
-		await vscode.commands.executeCommand('textReplaceRule.runRule', { ruleName: 'TypeScript only' });
+		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'TypeScript only' });
 		assert.strictEqual(editor.document.getText(), 'a cat and a hat');
 	});
 
@@ -220,7 +220,7 @@ suite('Extension Test Suite', () => {
 		const editor = await openEditor('α');
 		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
 
-		await vscode.commands.executeCommand('textReplaceRule.runRule', { ruleName: 'Wolfram greek' });
+		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Wolfram greek' });
 		assert.strictEqual(editor.document.getText(), '\\[Alpha]');
 	});
 
@@ -239,7 +239,7 @@ suite('Extension Test Suite', () => {
 
 		const editor = await openEditor('x');
 		const items = await captureQuickPickItems(async () => {
-			await vscode.commands.executeCommand('textReplaceRule.runRule');
+			await vscode.commands.executeCommand('text-replace-rule.runRule');
 		});
 
 		assert.strictEqual(items.length, 1);
@@ -269,7 +269,7 @@ suite('Extension Test Suite', () => {
 
 		const editor = await openEditor('foo');
 		const items = await captureQuickPickItems(async () => {
-			await vscode.commands.executeCommand('textReplaceRule.runRulePipeline');
+			await vscode.commands.executeCommand('text-replace-rule.runRulePipeline');
 		});
 
 		assert.strictEqual(items.length, 1);
@@ -281,12 +281,12 @@ suite('Extension Test Suite', () => {
 
 	test('registered commands include runRulePipeline and exclude removed commands', async () => {
 		const commands = await vscode.commands.getCommands(true);
-		assert.strictEqual(commands.includes('textReplaceRule.runRule'), true);
-		assert.strictEqual(commands.includes('textReplaceRule.runRulePipeline'), true);
+		assert.strictEqual(commands.includes('text-replace-rule.runRule'), true);
+		assert.strictEqual(commands.includes('text-replace-rule.runRulePipeline'), true);
 		assert.strictEqual(commands.includes('replacerules.runRule'), false);
 		assert.strictEqual(commands.includes('replacerules.runRulePipeline'), false);
 		assert.strictEqual(commands.includes('replacerules.runRuleset'), false);
-		assert.strictEqual(commands.includes('textReplaceRule.runRuleset'), false);
+		assert.strictEqual(commands.includes('text-replace-rule.runRuleset'), false);
 		assert.strictEqual(commands.includes('replacerules.stringifyRegex'), false);
 		assert.strictEqual(commands.includes('replacerules.pasteAndReplace'), false);
 		assert.strictEqual(commands.includes('replacerules.pasteAndReplaceRuleset'), false);
@@ -323,7 +323,7 @@ suite('Extension Test Suite', () => {
 		const editor = await openEditor('foofoo');
 		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
 
-		await vscode.commands.executeCommand('textReplaceRule.runRulePipeline', { rulePipelineName: 'Collapse' });
+		await vscode.commands.executeCommand('text-replace-rule.runRulePipeline', { rulePipelineName: 'Collapse' });
 		assert.strictEqual(editor.document.getText(), 'baz');
 	});
 
@@ -363,7 +363,7 @@ suite('Extension Test Suite', () => {
 		const editor = await openEditor('foofoo');
 		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
 
-		await vscode.commands.executeCommand('textReplaceRule.runRulePipeline', { rulePipelineName: 'Collapse' });
+		await vscode.commands.executeCommand('text-replace-rule.runRulePipeline', { rulePipelineName: 'Collapse' });
 		assert.strictEqual(editor.document.getText(), 'baz');
 	});
 
@@ -382,7 +382,7 @@ suite('Extension Test Suite', () => {
 		const editor = await openEditor('Foo bar');
 		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
 
-		await vscode.commands.executeCommand('textReplaceRule.runRule', { ruleName: 'Collapse in steps' });
+		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Collapse in steps' });
 		assert.strictEqual(editor.document.getText(), 'baz baz');
 	});
 
@@ -402,7 +402,7 @@ suite('Extension Test Suite', () => {
 		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
 
 		const editCount = await withDocumentChangeSpy(editor.document, async () => {
-			await vscode.commands.executeCommand('textReplaceRule.runRule', { ruleName: 'Two step collapse' });
+			await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Two step collapse' });
 		});
 
 		assert.strictEqual(editCount, 1);
@@ -436,7 +436,7 @@ suite('Extension Test Suite', () => {
 		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
 
 		const editCount = await withDocumentChangeSpy(editor.document, async () => {
-			await vscode.commands.executeCommand('textReplaceRule.runRulePipeline', { rulePipelineName: 'Collapse' });
+			await vscode.commands.executeCommand('text-replace-rule.runRulePipeline', { rulePipelineName: 'Collapse' });
 		});
 
 		assert.strictEqual(editCount, 1);
@@ -458,12 +458,12 @@ suite('Extension Test Suite', () => {
 		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
 
 		const errors = await captureErrorMessages(async () => {
-			await vscode.commands.executeCommand('textReplaceRule.runRule', { ruleName: 'Broken' });
+			await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Broken' });
 			await delay(25);
 		});
 
 		assert.strictEqual(errors.length, 1);
-		assert.match(errors[0], /^Error loading textReplaceRule\.configPath:/);
+		assert.match(errors[0], /^Error loading text-replace-rule\.configPath:/);
 		assert.strictEqual(editor.document.getText(), 'sample text');
 	});
 
@@ -483,12 +483,12 @@ suite('Extension Test Suite', () => {
 		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
 
 		const errors = await captureErrorMessages(async () => {
-			await vscode.commands.executeCommand('textReplaceRule.runRule', { ruleName: 'Broken' });
+			await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Broken' });
 			await delay(25);
 		});
 
 		assert.strictEqual(errors.length, 1);
-		assert.match(errors[0], /^Error loading textReplaceRule\.configPath:/);
+		assert.match(errors[0], /^Error loading text-replace-rule\.configPath:/);
 		assert.strictEqual(editor.document.getText(), 'sample text');
 	});
 
@@ -600,12 +600,12 @@ suite('Extension Test Suite', () => {
 		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
 
 		const errors = await captureErrorMessages(async () => {
-			await vscode.commands.executeCommand('textReplaceRule.runRule', { ruleName: 'Anything' });
+			await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Anything' });
 			await delay(25);
 		});
 
 		assert.strictEqual(errors.length, 1);
-		assert.match(errors[0], /^Error loading textReplaceRule\.configPath:/);
+		assert.match(errors[0], /^Error loading text-replace-rule\.configPath:/);
 		assert.strictEqual(editor.document.getText(), 'sample text');
 	});
 
@@ -634,12 +634,12 @@ suite('Extension Test Suite', () => {
 		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
 
 		const errors = await captureErrorMessages(async () => {
-			await vscode.commands.executeCommand('textReplaceRule.runRule', { ruleName: 'Broken' });
+			await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Broken' });
 			await delay(25);
 		});
 
 		assert.strictEqual(errors.length, 1);
-		assert.match(errors[0], /^Error loading textReplaceRule\.configPath: Invalid JSONC in /);
+		assert.match(errors[0], /^Error loading text-replace-rule\.configPath: Invalid JSONC in /);
 		assert.strictEqual(editor.document.getText(), 'sample text');
 	});
 
@@ -658,23 +658,23 @@ suite('Extension Test Suite', () => {
 		assert.strictEqual(manifest.engines?.vscode, '^1.116.0');
 		assert.strictEqual(manifest.devDependencies?.['@types/vscode'], '^1.116.0');
 		assert.strictEqual(manifest.dependencies?.['jsonc-parser'], '^3.3.1');
-		assert.strictEqual(manifest.name, 'textReplaceRule');
+		assert.strictEqual(manifest.name, 'text-replace-rule');
 		assert.strictEqual(manifest.displayName, 'TextReplaceRule');
-		assert.strictEqual(manifest.activationEvents?.includes('onCommand:textReplaceRule.runRule'), true);
-		assert.strictEqual(manifest.activationEvents?.includes('onCommand:textReplaceRule.runRulePipeline'), true);
+		assert.strictEqual(manifest.activationEvents?.includes('onCommand:text-replace-rule.runRule'), true);
+		assert.strictEqual(manifest.activationEvents?.includes('onCommand:text-replace-rule.runRulePipeline'), true);
 		assert.strictEqual(manifest.activationEvents?.includes('onCommand:replacerules.runRule'), false);
 		assert.strictEqual(manifest.activationEvents?.includes('onCommand:replacerules.runRulePipeline'), false);
 		assert.strictEqual(manifest.activationEvents?.includes('onCommand:replacerules.runRuleset'), false);
-		assert.strictEqual(manifest.activationEvents?.includes('onCommand:textReplaceRule.runRuleset'), false);
+		assert.strictEqual(manifest.activationEvents?.includes('onCommand:text-replace-rule.runRuleset'), false);
 		assert.strictEqual(manifest.activationEvents?.includes('onCommand:replacerules.stringifyRegex'), false);
-		assert.strictEqual(manifest.contributes?.commands?.some((command) => command.command === 'textReplaceRule.runRule'), true);
-		assert.strictEqual(manifest.contributes?.commands?.some((command) => command.command === 'textReplaceRule.runRulePipeline'), true);
+		assert.strictEqual(manifest.contributes?.commands?.some((command) => command.command === 'text-replace-rule.runRule'), true);
+		assert.strictEqual(manifest.contributes?.commands?.some((command) => command.command === 'text-replace-rule.runRulePipeline'), true);
 		assert.strictEqual(manifest.contributes?.commands?.some((command) => command.command === 'replacerules.stringifyRegex'), false);
 	});
 });
 
 async function setTextReplaceRuleConfig(configPath: unknown): Promise<void> {
-	const config = vscode.workspace.getConfiguration('textReplaceRule');
+	const config = vscode.workspace.getConfiguration('text-replace-rule');
 	await config.update('configPath', configPath, CONFIG_SCOPE);
 }
 
@@ -727,12 +727,12 @@ async function assertConfigLoadFailure(config: unknown): Promise<void> {
 	editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
 
 	const errors = await captureErrorMessages(async () => {
-		await vscode.commands.executeCommand('textReplaceRule.runRule', { ruleName: 'Broken' });
+		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Broken' });
 		await delay(25);
 	});
 
 	assert.strictEqual(errors.length, 1);
-	assert.match(errors[0], /^Error loading textReplaceRule\.configPath:/);
+	assert.match(errors[0], /^Error loading text-replace-rule\.configPath:/);
 	assert.strictEqual(editor.document.getText(), 'sample text');
 }
 

@@ -1,76 +1,41 @@
 # src/editProvider.ts
 
-## Purpose
+Core engine for the extension.
 
-This file contains the core replace engine used by all extension commands.
+## Responsibilities
 
-## Main class
+- load external config from `text-replace-rule.configPath`
+- parse `rules` and `rulePipelines`
+- build quick pick items for rules and pipelines
+- resolve target ranges from the active editor
+- apply ordered replace steps in memory
+- commit all edits through one `TextEditor.edit(...)`
 
-TextReplaceRuleEditProvider
+## Public entrypoints
 
-### Constructor
+- `pickRuleAndRun()`
+- `pickRulePipelineAndRun()`
+- `runSingleRule(ruleName)`
+- `runRulePipeline(rulePipelineName)`
 
-- Accepts the active TextEditor.
-- Reads configuration from `textReplaceRule.configPath`.
-- If `configPath` is set, loads external JSON or JSONC from disk (via `jsonc-parser`) and uses `rules` / `rulePipelines` from that file.
-- If `configPath` is unset or the file fails to load, the provider works with empty config.
+## Execution model
 
-### User-facing entry methods
+- One empty selection means whole-document replace.
+- Non-empty selections are processed independently.
+- `regexReplace` may contain multiple ordered steps.
+- `rulePipelines` flatten multiple rules into one ordered step list.
+- Line endings are normalized for matching and restored before writing.
 
-- pickRuleAndRun()
-- pickRulePipelineAndRun()
-- runSingleRule(ruleName)
-- runRulePipeline(rulePipelineName)
+## Rule model
 
-## Selection and menu helpers
+- `regexReplace`
+    - `find`, `replace`, `flag`, optional `language`, optional `post`
+- `literalMap`
+    - `map`, optional `language`, optional `post`
+- `post` currently supports only `["expandTab"]`
 
-- getQPRules(): Builds quick pick items for rules, with optional language filtering and optional `name` / `description` display metadata.
-- getQPRulePipelines(): Builds quick pick items for rule pipelines, with optional `name` / `description` display metadata.
+## Notes
 
-## Replace execution model
-
-There is one execution path:
-
-- doReplace(rule): Runs replacements on the active document or selections.
-- doReplace(steps): Runs replacements on the active document or selections.
-- The replace path preserves CRLF line endings when writing back to the document.
-- The replace path computes all changes in memory first and applies them through one `TextEditor.edit(...)` call.
-
-### Full-document behavior
-
-If there is exactly one selection and it is empty, the entire document is targeted.
-
-### Multi-step behavior
-
-A `regexReplace` rule can contain multiple find/replace steps. Steps are executed in order.
-`rulePipelines` append steps from multiple rules into one sequence and then execute.
-If a rule pipeline resolves to zero applicable rules, no edit is attempted.
-
-## Internal rule model
-
-- RuleDefinition union
-    - Supports `regexReplace` and `literalMap`.
-    - Carries optional `name` and `description` metadata for Quick Pick display.
-- RegexReplaceStep
-    - Builds a RegExp from `find` and `flag`.
-    - Ensures global matching by adding `g` when missing.
-- LiteralMapStep
-    - Compiles one literal matcher and replacement table.
-
-## Utility functions
-
-- getReplaceTargets(editor, document): Computes immutable replace ranges before edits.
-- normalizeLineEndings(str): Normalizes CRLF to LF for matching only.
-- getPostProcessContext(editor): Reads effective editor tab settings for post processors.
-- applySteps(text, steps, context): Applies ordered in-memory replacement steps.
-- loadExternalConfig(path, documentUri): Reads and parses external JSON/JSONC config.
-- parseExternalConfig(rawText, resolvedPath): Parses JSONC text, validates typed rules, and reports file-scoped config errors.
-- resolveConfigPath(path, documentUri): Expands `~/` and resolves workspace-relative paths.
-- applyRegexReplaceStep(...): Expands standard replacement string tokens and runs `expandTab`.
-- applyLiteralMapStep(...): Performs literal lookup replacement and runs `expandTab`.
-- escapeRegExp(str): Escapes literal patterns and literal-map entries.
-
-## Maintenance notes
-
-- A new provider is created for each command invocation, so config is re-read each run.
-- Errors in parsing or execution are surfaced via VS Code error notifications.
+- Config is reloaded on each command invocation.
+- Errors are surfaced through VS Code error messages.
+- This file owns behavior. `src/extension.ts` should stay thin.

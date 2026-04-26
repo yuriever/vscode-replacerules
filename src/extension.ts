@@ -3,8 +3,8 @@ import * as vscode from 'vscode';
 import TextReplaceRuleEditProvider from './editProvider';
 
 export function activate(context: vscode.ExtensionContext) {
-    context.subscriptions.push(vscode.commands.registerCommand('textReplaceRule.runRule', runSingleRule));
-    context.subscriptions.push(vscode.commands.registerCommand('textReplaceRule.runRulePipeline', runRulePipeline));
+    context.subscriptions.push(vscode.commands.registerCommand('text-replace-rule.runRule', runSingleRule));
+    context.subscriptions.push(vscode.commands.registerCommand('text-replace-rule.runRulePipeline', runRulePipeline));
 }
 
 export function deactivate() {

@@ -1,30 +1,39 @@
 # Change Log
 
+TextReplaceRule started as a fork of `bhughes339/vscode-replacerules`, but `1.0.0` marks the start of an independent product line. Entries from `1.0.0` onward describe TextReplaceRule itself. Older `0.x` entries are kept below as legacy fork history and do not define the new configuration model or naming scheme.
+
 ## Unreleased
 
-- Breaking change: rename the extension namespace from `replacerules` to `textReplaceRule`
-    - Rename commands to `textReplaceRule.runRule` and `textReplaceRule.runRulePipeline`
-    - Rename configuration key to `textReplaceRule.configPath`
-- Breaking change: replace `rulesets` with `rulePipelines`
+- No unreleased changes
+
+## 1.0.0
+
+- Establish TextReplaceRule as an independently versioned extension
+- Rename the extension namespace from `replacerules` to `text-replace-rule`
+    - Rename commands to `text-replace-rule.runRule` and `text-replace-rule.runRulePipeline`
+    - Rename configuration key to `text-replace-rule.configPath`
+- Replace `rulesets` with `rulePipelines`
     - Rename command arguments and user-facing terminology to "rule pipeline"
-- Breaking change: remove `replacerules.stringifyRegex`
-- Breaking change: replace ad hoc rule shapes with typed rules
+- Replace ad hoc rule shapes with explicit rule types
     - Support only `regexReplace` and `literalMap`
     - Remove `literal`, `flags`, `languages`, and `rulesets`
     - Rename `flags` to `flag` and `languages` to `language`
-- Feature: add `literalMap` for bulk literal lookup-and-replace
-- Feature: add optional `name` and `description` metadata for rules and rule pipelines
-- Feature: support `post: ["expandTab"]` for per-replacement tab expansion
-- Performance: execute rule chains in memory and commit changes through a single editor edit
-- Feature: support JSONC external config parsing for `textReplaceRule.configPath`
+- Remove `replacerules.stringifyRegex`
+- Add `literalMap` for bulk literal lookup-and-replace
+- Add optional `name` and `description` metadata for rules and rule pipelines
+- Support `post: ["expandTab"]` for per-replacement tab expansion
+- Execute rule chains in memory and commit changes through a single editor edit
+- Support JSONC external config parsing for `text-replace-rule.configPath`
     - Parse config files with `jsonc-parser`
     - Accept comments and trailing commas in config files
+- Upgrade the toolchain and test baseline for current VS Code versions
+    - Update the VS Code engine baseline to `^1.116.0`
+    - Update TypeScript, ESLint, Mocha, Glob, Node/VS Code type packages, and the VS Code test runner
+    - Modernize the test suite loader for current `mocha` and `glob` APIs
 
-- Maintenance: upgrade toolchain and dev dependencies to current stable versions
-    - Update VS Code engine baseline to `^1.116.0`
-    - Update TypeScript, ESLint, Mocha, Glob, Node/VS Code type packages, and VS Code test runner
-- Maintenance: modernize test suite loader for current `mocha` and `glob` APIs
-- No clipboard command changes
+## Legacy Fork History
+
+The entries below summarize the older `0.x` line inherited from the original extension family. They are preserved for historical reference only.
 
 ## 0.4.2
 
@@ -87,8 +96,8 @@
     - The old format will be backed up to `replacerules.oldrules` in case there is any data loss during the conversion. This can be safely removed from your configurations at any time.
 - Add support for rulesets (`replacerules.rulesets`) which run multiple rules in sequence. See README for format
 - Allow specific rules and rulesets to be bound to keyboard shortcuts
-    - Rules - `{command: 'textReplaceRule.runRule', args: ruleName: { <name of rule> }}`
-    - Rulesets - `{command: 'textReplaceRule.runRuleSet', args: ruleSet: { <name of ruleset> }}`
+    - Rules - `{command: 'text-replace-rule.runRule', args: ruleName: { <name of rule> }}`
+    - Rulesets - `{command: 'text-replace-rule.runRuleSet', args: ruleSet: { <name of ruleset> }}`
 
 ## 0.1.7
 

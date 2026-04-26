@@ -239,7 +239,7 @@ export default class TextReplaceRuleEditProvider {
 
     constructor(textEditor: TextEditor) {
         this.textEditor = textEditor;
-        let config = vscode.workspace.getConfiguration("textReplaceRule");
+        let config = vscode.workspace.getConfiguration("text-replace-rule");
         let configPath = config.get<string>("configPath");
 
         if (configPath) {
@@ -247,7 +247,7 @@ export default class TextReplaceRuleEditProvider {
                 this.config = loadExternalConfig(configPath, textEditor.document.uri);
                 return;
             } catch (err: any) {
-                Window.showErrorMessage('Error loading textReplaceRule.configPath: ' + err.message);
+                Window.showErrorMessage('Error loading text-replace-rule.configPath: ' + err.message);
             }
         }
 

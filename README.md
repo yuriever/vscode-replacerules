@@ -1,17 +1,17 @@
 # TextReplaceRule
 
-**This is based on [bhughes339/vscode-replacerules](https://github.com/bhughes339/vscode-replacerules).**
+**Originally forked from [bhughes339/vscode-replacerules](https://github.com/bhughes339/vscode-replacerules). TextReplaceRule is now maintained as an independent extension.**
 
 TextReplaceRule runs named text-transformation rules from an external JSON or JSONC file. Rules can use either regular expressions or literal lookup maps, and rule pipelines can chain multiple rules in order.
 
 ## Getting started
 
-1. Set `textReplaceRule.configPath` in `settings.json`.
+1. Set `text-replace-rule.configPath` in `settings.json`.
 2. Open the Command Palette and select **TextReplaceRule: Run Rule...** or **TextReplaceRule: Run Rule Pipeline...**.
 
 ## Configuration file
 
-`textReplaceRule.configPath` points to a JSON or JSONC file with this top-level shape:
+`text-replace-rule.configPath` points to a JSON or JSONC file with this top-level shape:
 
 ```json
 {
