@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Feature: support JSONC external config parsing for `replacerules.configPath`
+    - Parse config files with `jsonc-parser`
+    - Accept comments and trailing commas in config files
+
 - Maintenance: upgrade toolchain and dev dependencies to current stable versions
     - Update VS Code engine baseline to `^1.116.0`
     - Update TypeScript, ESLint, Mocha, Glob, Node/VS Code type packages, and VS Code test runner

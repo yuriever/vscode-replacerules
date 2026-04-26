@@ -19,10 +19,12 @@ This validates integration between command registration, config parsing, and rep
 6. runRule skips rules whose `languages` filter does not match the active document.
 7. Removed clipboard replace commands are no longer registered.
 8. runRuleset loads external config from `replacerules.configPath`, including paths with spaces.
-9. runRule reports invalid regex config errors without modifying the document.
-10. runRule reports missing `configPath` file errors without modifying the document.
-11. parseRegexInput accepts `/pattern/flags` and rejects malformed literals.
-12. package metadata keeps `engines.vscode` aligned with `@types/vscode` baseline.
+9. runRuleset loads external JSONC config from `replacerules.configPath`, including comments and trailing commas.
+10. runRule reports invalid regex config errors without modifying the document.
+11. runRule reports missing `configPath` file errors without modifying the document.
+12. runRule reports invalid JSONC config parse errors without modifying the document.
+13. parseRegexInput accepts `/pattern/flags` and rejects malformed literals.
+14. package metadata keeps `engines.vscode` aligned with `@types/vscode` baseline and includes `jsonc-parser`.
 
 ## Isolation helpers
 

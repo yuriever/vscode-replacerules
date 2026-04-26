@@ -213,6 +213,44 @@ suite('Extension Test Suite', () => {
 		await waitForDocumentText(editor.document, 'baz');
 	});
 
+	test('runRuleset loads external JSONC config from configPath', async () => {
+		const fixtureDir = path.join(os.tmpdir(), 'replace rules test');
+		const fixturePath = path.join(fixtureDir, `config-${Date.now()}-${Math.random().toString(16).slice(2)}.jsonc`);
+		const jsoncConfig = `{
+			// Rule definitions
+			"rules": {
+				"Foo to Bar": {
+					"find": "foo",
+					"replace": "bar",
+					"flags": "g",
+				},
+				"BarBar to Baz": {
+					"find": "barbar",
+					"replace": "baz",
+					"flags": "g",
+				},
+			},
+			"rulesets": {
+				"Collapse": {
+					"rules": [
+						"Foo to Bar",
+						"BarBar to Baz",
+					],
+				},
+			},
+		}`;
+
+		await fs.mkdir(fixtureDir, { recursive: true });
+		await fs.writeFile(fixturePath, jsoncConfig, 'utf8');
+		await setReplaceRulesConfig(fixturePath);
+
+		const editor = await openEditor('foofoo');
+		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
+
+		await vscode.commands.executeCommand('replacerules.runRuleset', { rulesetName: 'Collapse' });
+		await waitForDocumentText(editor.document, 'baz');
+	});
+
 	test('runRule shows an error for invalid regex config', async () => {
 		await setReplaceRulesConfig(await writeConfigFile({
 			rules: {
@@ -253,6 +291,39 @@ suite('Extension Test Suite', () => {
 		assert.strictEqual(editor.document.getText(), 'sample text');
 	});
 
+	test('runRule shows an error for invalid JSONC in configPath file', async () => {
+		const fixtureDir = path.join(os.tmpdir(), 'replace rules test');
+		const fixturePath = path.join(fixtureDir, `invalid-${Date.now()}-${Math.random().toString(16).slice(2)}.jsonc`);
+		const invalidJsonc = `{
+			"rules": {
+				"Broken": {
+					"find": "a",
+					"replace": "b",
+				},
+			},
+			"rulesets": {
+				"Any": {
+					"rules": ["Broken"]
+				}
+			}`;
+
+		await fs.mkdir(fixtureDir, { recursive: true });
+		await fs.writeFile(fixturePath, invalidJsonc, 'utf8');
+		await setReplaceRulesConfig(fixturePath);
+
+		const editor = await openEditor('sample text');
+		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
+
+		const errors = await captureErrorMessages(async () => {
+			await vscode.commands.executeCommand('replacerules.runRule', { ruleName: 'Broken' });
+			await delay(25);
+		});
+
+		assert.strictEqual(errors.length, 1);
+		assert.match(errors[0], /^Error loading replacerules\.configPath: Invalid JSONC in /);
+		assert.strictEqual(editor.document.getText(), 'sample text');
+	});
+
 	test('parseRegexInput parses regex literals with flags', () => {
 		assert.deepStrictEqual(parseRegexInput('/foo/i'), { pattern: 'foo', flags: 'i' });
 		assert.deepStrictEqual(parseRegexInput('foo'), { pattern: 'foo', flags: '' });
@@ -268,10 +339,12 @@ suite('Extension Test Suite', () => {
 		const manifest = JSON.parse(await fs.readFile(packagePath, 'utf8')) as {
 			engines?: { vscode?: string };
 			devDependencies?: { [name: string]: string };
+			dependencies?: { [name: string]: string };
 		};
 
 		assert.strictEqual(manifest.engines?.vscode, '^1.116.0');
 		assert.strictEqual(manifest.devDependencies?.['@types/vscode'], '^1.116.0');
+		assert.strictEqual(manifest.dependencies?.['jsonc-parser'], '^3.3.1');
 	});
 });
 

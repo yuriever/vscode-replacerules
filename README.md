@@ -14,7 +14,7 @@ Create search/replace rules using JavaScript RegEx. A "rule" is one or more sear
 
 ### Configuration file format
 
-The JSON file pointed to by `replacerules.configPath` contains `rules` and `rulesets`.
+The JSON or JSONC file pointed to by `replacerules.configPath` contains `rules` and `rulesets`.
 
 #### Rules
 
@@ -37,11 +37,12 @@ The JSON file pointed to by `replacerules.configPath` contains `rules` and `rule
 
 ### External configuration file
 
-`replacerules.configPath` points to a JSON file that contains `rules` and `rulesets`.
+`replacerules.configPath` points to a JSON or JSONC file that contains `rules` and `rulesets`.
 
 - Absolute, relative, and space-containing paths are supported.
 - Relative paths are resolved from the current workspace folder when one exists.
 - `~/` expands to the current home directory.
+- JSONC comments and trailing commas are supported.
 - If `configPath` is unset or the file cannot be loaded, no Replace Rules configuration is available.
 
 ## Example configuration

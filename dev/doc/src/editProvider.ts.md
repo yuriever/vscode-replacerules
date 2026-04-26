@@ -12,7 +12,7 @@ ReplaceRulesEditProvider
 
 - Accepts the active TextEditor.
 - Reads configuration from `replacerules.configPath`.
-- If `configPath` is set, loads external JSON from disk and uses `rules` / `rulesets` from that file.
+- If `configPath` is set, loads external JSON or JSONC from disk (via `jsonc-parser`) and uses `rules` / `rulesets` from that file.
 - If `configPath` is unset or the file fails to load, the provider works with empty config.
 
 ### User-facing entry methods
@@ -58,7 +58,8 @@ If a ruleset resolves to zero applicable rules, no edit is attempted.
 - objToArray(obj): Normalizes config field values.
 - rangeUpdate(editor, document, index): Computes effective replace range.
 - normalizeLineEndings(str): Normalizes CRLF to LF for matching only.
-- loadExternalConfig(path, documentUri): Reads and parses external JSON config.
+- loadExternalConfig(path, documentUri): Reads and parses external JSON/JSONC config.
+- parseExternalConfig(rawText, resolvedPath): Parses JSONC text and reports parser errors with file context.
 - resolveConfigPath(path, documentUri): Expands `~/` and resolves workspace-relative paths.
 - applyReplacement(text, replacement): Applies normalized matching while preserving CRLF line endings in output.
 - escapeRegExp(str): Escapes literal patterns.

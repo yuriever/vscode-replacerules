@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { parse as parseJsonc, ParseError, printParseErrorCode } from 'jsonc-parser';
 
 import { TextEditor, Range } from 'vscode';
 import Window = vscode.window;
@@ -237,11 +238,37 @@ type ExternalReplaceRulesConfig = {
 const loadExternalConfig = (configPath: string, documentUri: vscode.Uri): ExternalReplaceRulesConfig => {
     let resolvedPath = resolveConfigPath(configPath, documentUri);
     let rawText = fs.readFileSync(resolvedPath, 'utf8');
-    let parsed = JSON.parse(rawText);
+    let parsed = parseExternalConfig(rawText, resolvedPath);
 
     return {
         rules: parsed.rules,
         rulesets: parsed.rulesets
+    };
+}
+
+const parseExternalConfig = (rawText: string, resolvedPath: string): ExternalReplaceRulesConfig => {
+    let parseErrors: ParseError[] = [];
+    let parsed = parseJsonc(rawText, parseErrors, {
+        allowTrailingComma: true,
+        disallowComments: false
+    }) as unknown;
+
+    if (parseErrors.length > 0) {
+        let firstError = parseErrors[0];
+        throw new Error(
+            `Invalid JSONC in ${resolvedPath}: ${printParseErrorCode(firstError.error)} at offset ${firstError.offset}`
+        );
+    }
+
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        throw new Error(`Config root must be a JSON object in ${resolvedPath}`);
+    }
+
+    let parsedConfig = parsed as ExternalReplaceRulesConfig;
+
+    return {
+        rules: parsedConfig.rules,
+        rulesets: parsedConfig.rulesets
     };
 }
 
