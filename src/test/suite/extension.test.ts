@@ -1,9 +1,11 @@
 import * as assert from 'assert';
+import * as fs from 'fs/promises';
+import * as os from 'os';
+import * as path from 'path';
 import * as vscode from 'vscode';
 
 type ConfigSnapshot = {
-	rules: unknown;
-	rulesets: unknown;
+	configPath: unknown;
 };
 
 const CONFIG_SCOPE = vscode.ConfigurationTarget.Global;
@@ -14,14 +16,13 @@ suite('Extension Test Suite', () => {
 	suiteSetup(async () => {
 		const config = vscode.workspace.getConfiguration('replacerules');
 		snapshot = {
-			rules: config.inspect('rules')?.globalValue,
-			rulesets: config.inspect('rulesets')?.globalValue
+			configPath: config.inspect('configPath')?.globalValue
 		};
 	});
 
 	setup(async () => {
 		await vscode.commands.executeCommand('workbench.action.closeAllEditors');
-		await setReplaceRulesConfig({}, {});
+		await setReplaceRulesConfig(undefined);
 	});
 
 	teardown(async () => {
@@ -29,17 +30,19 @@ suite('Extension Test Suite', () => {
 	});
 
 	suiteTeardown(async () => {
-		await setReplaceRulesConfig(snapshot.rules, snapshot.rulesets);
+		await setReplaceRulesConfig(snapshot.configPath);
 	});
 
 	test('runRule replaces full document when selection is empty', async () => {
-		await setReplaceRulesConfig({
-			'Uppercase a': {
-				find: 'a',
-				replace: 'A',
-				flags: 'g'
+		await setReplaceRulesConfig(await writeConfigFile({
+			rules: {
+				'Uppercase a': {
+					find: 'a',
+					replace: 'A',
+					flags: 'g'
+				}
 			}
-		}, {});
+		}));
 
 		const editor = await openEditor('a cat and a hat');
 		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
@@ -49,22 +52,25 @@ suite('Extension Test Suite', () => {
 	});
 
 	test('runRuleset applies rules in sequence', async () => {
-		await setReplaceRulesConfig({
-			'Foo to Bar': {
-				find: 'foo',
-				replace: 'bar',
-				flags: 'g'
+		await setReplaceRulesConfig(await writeConfigFile({
+			rules: {
+				'Foo to Bar': {
+					find: 'foo',
+					replace: 'bar',
+					flags: 'g'
+				},
+				'BarBar to Baz': {
+					find: 'barbar',
+					replace: 'baz',
+					flags: 'g'
+				}
 			},
-			'BarBar to Baz': {
-				find: 'barbar',
-				replace: 'baz',
-				flags: 'g'
+			rulesets: {
+				Collapse: {
+					rules: ['Foo to Bar', 'BarBar to Baz']
+				}
 			}
-		}, {
-			Collapse: {
-				rules: ['Foo to Bar', 'BarBar to Baz']
-			}
-		});
+		}));
 
 		const editor = await openEditor('foofoo');
 		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
@@ -78,12 +84,52 @@ suite('Extension Test Suite', () => {
 		assert.strictEqual(commands.includes('replacerules.pasteAndReplace'), false);
 		assert.strictEqual(commands.includes('replacerules.pasteAndReplaceRuleset'), false);
 	});
+
+	test('runRuleset loads external config from configPath with spaces', async () => {
+		const fixtureDir = path.join(os.tmpdir(), 'replace rules test');
+		const fixturePath = path.join(fixtureDir, 'config with spaces.json');
+		await fs.mkdir(fixtureDir, { recursive: true });
+		await fs.writeFile(fixturePath, JSON.stringify({
+			rules: {
+				'Foo to Bar': {
+					find: 'foo',
+					replace: 'bar',
+					flags: 'g'
+				},
+				'BarBar to Baz': {
+					find: 'barbar',
+					replace: 'baz',
+					flags: 'g'
+				}
+			},
+			rulesets: {
+				Collapse: {
+					rules: ['Foo to Bar', 'BarBar to Baz']
+				}
+			}
+		}), 'utf8');
+
+		await setReplaceRulesConfig(fixturePath);
+
+		const editor = await openEditor('foofoo');
+		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
+
+		await vscode.commands.executeCommand('replacerules.runRuleset', { rulesetName: 'Collapse' });
+		await waitForDocumentText(editor.document, 'baz');
+	});
 });
 
-async function setReplaceRulesConfig(rules: unknown, rulesets: unknown): Promise<void> {
+async function setReplaceRulesConfig(configPath: unknown): Promise<void> {
 	const config = vscode.workspace.getConfiguration('replacerules');
-	await config.update('rules', rules, CONFIG_SCOPE);
-	await config.update('rulesets', rulesets, CONFIG_SCOPE);
+	await config.update('configPath', configPath, CONFIG_SCOPE);
+}
+
+async function writeConfigFile(config: unknown): Promise<string> {
+	const fixtureDir = path.join(os.tmpdir(), 'replace rules test');
+	const fixturePath = path.join(fixtureDir, `config-${Date.now()}-${Math.random().toString(16).slice(2)}.json`);
+	await fs.mkdir(fixtureDir, { recursive: true });
+	await fs.writeFile(fixturePath, JSON.stringify(config), 'utf8');
+	return fixturePath;
 }
 
 async function openEditor(content: string): Promise<vscode.TextEditor> {

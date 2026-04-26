@@ -10,6 +10,7 @@
 
 - 新增命令时，更新 `package.json` 中的 `contributes.commands`。
 - 新增设置项时，更新 `contributes.configuration.properties` 的配置 schema。
+- 避免为同一份用户数据同时维护多套配置入口；优先保持单一配置源。
 
 ## 实现
 

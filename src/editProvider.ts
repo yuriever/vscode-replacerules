@@ -1,4 +1,7 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 
 import { TextEditor, Range } from 'vscode';
 import Window = vscode.window;
@@ -126,8 +129,21 @@ export default class ReplaceRulesEditProvider {
     constructor(textEditor: TextEditor) {
         this.textEditor = textEditor;
         let config = vscode.workspace.getConfiguration("replacerules");
-        this.configRules = config.get<any>("rules");
-        this.configRulesets = config.get<any>("rulesets");
+        let configPath = config.get<string>("configPath");
+
+        if (configPath) {
+            try {
+                let externalConfig = loadExternalConfig(configPath, textEditor.document.uri);
+                this.configRules = externalConfig.rules || {};
+                this.configRulesets = externalConfig.rulesets || {};
+                return;
+            } catch (err: any) {
+                Window.showErrorMessage('Error loading replacerules.configPath: ' + err.message);
+            }
+        }
+
+        this.configRules = {};
+        this.configRulesets = {};
     }
 }
 
@@ -181,6 +197,39 @@ const rangeUpdate = (e: TextEditor, d: vscode.TextDocument, index: number) => {
 
 const stripCR = (str: string) => {
     return str.replace(new RegExp(/\r\n/, 'g'), '\n');
+}
+
+type ExternalReplaceRulesConfig = {
+    rules?: any;
+    rulesets?: any;
+}
+
+const loadExternalConfig = (configPath: string, documentUri: vscode.Uri): ExternalReplaceRulesConfig => {
+    let resolvedPath = resolveConfigPath(configPath, documentUri);
+    let rawText = fs.readFileSync(resolvedPath, 'utf8');
+    let parsed = JSON.parse(rawText);
+
+    return {
+        rules: parsed.rules,
+        rulesets: parsed.rulesets
+    };
+}
+
+const resolveConfigPath = (configPath: string, documentUri: vscode.Uri) => {
+    let expandedPath = configPath.startsWith('~/')
+        ? path.join(os.homedir(), configPath.slice(2))
+        : configPath;
+
+    if (path.isAbsolute(expandedPath)) {
+        return expandedPath;
+    }
+
+    let workspaceFolder = vscode.workspace.getWorkspaceFolder(documentUri);
+    if (workspaceFolder) {
+        return path.resolve(workspaceFolder.uri.fsPath, expandedPath);
+    }
+
+    return path.resolve(expandedPath);
 }
 
 // From https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions#Escaping

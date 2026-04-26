@@ -11,9 +11,9 @@ ReplaceRulesEditProvider
 ### Constructor
 
 - Accepts the active TextEditor.
-- Reads configuration values from:
-    - replacerules.rules
-    - replacerules.rulesets
+- Reads configuration from `replacerules.configPath`.
+- If `configPath` is set, loads external JSON from disk and uses `rules` / `rulesets` from that file.
+- If `configPath` is unset or the file fails to load, the provider works with empty config.
 
 ### User-facing entry methods
 
@@ -56,6 +56,8 @@ Rulesets append steps from multiple rules into one sequence and then execute.
 - objToArray(obj): Normalizes config field values.
 - rangeUpdate(editor, document, index): Computes effective replace range.
 - stripCR(str): Normalizes CRLF to LF before matching.
+- loadExternalConfig(path, documentUri): Reads and parses external JSON config.
+- resolveConfigPath(path, documentUri): Expands `~/` and resolves workspace-relative paths.
 - escapeRegExp(str): Escapes literal patterns.
 
 ## Maintenance notes

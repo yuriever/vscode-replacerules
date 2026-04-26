@@ -8,15 +8,19 @@ Inspired by the Sublime Text plugin [RegReplace](https://github.com/facelessuser
 
 ## Getting started
 
-1. Add the rules you want to use in your `settings.json` (open the Command Palette and select `Preferences: open settings (JSON)`)
+1. Set `replacerules.configPath` in `settings.json`.
 
-2. Open the Command Palette (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>) and select **Replace Rules: Run Rule...**, then choose the rule to run across the selection or document.
+2. Open the Command Palette and select **Replace Rules: Run Rule...**.
 
 ## Configuration options
 
-### Rules
+### Configuration file format
 
-`replacerules.rules` is a dictionary of objects, each of which represents a single find/replace rule. A rule consists of the following components:
+The JSON file pointed to by `replacerules.configPath` contains `rules` and `rulesets`.
+
+#### Rules
+
+`rules` is a dictionary of objects, each of which represents a single find/replace rule. A rule consists of the following components:
 
 - Object key - (Required) The description of the rule that will appear in the command palette.
 - `find` - (Required) A sequence of regular expressions to be searched on. Can be a single string or an array of strings.
@@ -26,36 +30,45 @@ Inspired by the Sublime Text plugin [RegReplace](https://github.com/facelessuser
 - `languages` - (Optional) An array of workspace language ids that the rule is restricted to. For example, a rule with `languages` set to 'typescript' will only appear in the **Run Rule...** menu if TypeScript is the selected language for the active document.
 - `literal` - (Optional) Perform a non-RegEx, literal search and replace.
 
-### Rulesets
+#### Rulesets
 
-`replacerules.rulesets` is a dictionary of objects that run a sequence of rules defined in `replacerules.rules`. The rules are run in the order they are listed in the `rules` option:
+`rulesets` is a dictionary of objects that run a sequence of rules defined in `rules`. The rules are run in the order they are listed in the `rules` option:
 
 - Object key - (Required) The description of the ruleset that will appear in the command palette.
 - `rules` - (Required) An array of rules to be run when the ruleset is called.
 
+### External configuration file
+
+`replacerules.configPath` points to a JSON file that contains `rules` and `rulesets`.
+
+- Absolute paths are supported.
+- Paths containing spaces are supported.
+- `~/` expands to the current home directory.
+- Relative paths are resolved from the current workspace folder when one exists.
+- If `configPath` is unset or the file cannot be loaded, no Replace Rules configuration is available.
+
 ## Example configuration
 
 ```json
-"replacerules.rules": {
-    "Remove trailing and leading whitespace": {
-        "find": "^\\s*(.*)\\s*$",
-        "replace": "$1"
-    },
-    "Remove blank lines": {
-        "find": "^\\n",
-        "replace": "",
-        "languages": [
-            "typescript"
-        ]
-    }
-}
+"replacerules.configPath": "xxxx.json"
+```
 
-"replacerules.rulesets": {
-    "Remove lots of stuff": {
-        "rules": [
-            "Remove trailing and leading whitespace",
-            "Remove blank lines"
-        ]
+External file contents:
+
+```json
+{
+    "rules": {
+        "Remove trailing and leading whitespace": {
+            "find": "^\\s*(.*)\\s*$",
+            "replace": "$1"
+        }
+    },
+    "rulesets": {
+        "Remove lots of stuff": {
+            "rules": [
+                "Remove trailing and leading whitespace"
+            ]
+        }
     }
 }
 ```

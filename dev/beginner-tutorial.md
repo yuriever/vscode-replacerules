@@ -32,7 +32,7 @@
 ### 1.2 根目录主要文件
 
 - `package.json`
-    - 扩展元信息、命令贡献点、配置 schema、npm scripts、依赖版本。
+    - 扩展元信息、命令贡献点、`replacerules.configPath` 的配置 schema、npm scripts、依赖版本。
 - `tsconfig.json`
     - TypeScript 编译配置。
 - `.vscodeignore`
@@ -53,7 +53,7 @@
 - `src/extension.ts`
     - 扩展入口；负责注册命令并转发到执行逻辑。
 - `src/editProvider.ts`
-    - 核心替换逻辑（rule/ruleset、语言过滤、选区与全文件替换）。
+    - 核心替换逻辑（外部配置文件加载、rule/ruleset、语言过滤、选区与全文件替换）。
 - `src/test/runTest.ts`
     - 测试启动器；拉起 VS Code Extension Host 执行测试。
 - `src/test/suite/index.ts`
@@ -135,6 +135,7 @@
 2. 更新扩展贡献点（如有需要）
    - 命令：改 `package.json -> contributes.commands`
    - 配置：改 `package.json -> contributes.configuration.properties`
+   - 当前用户配置入口应保持单一：`replacerules.configPath`
 3. 实现逻辑
    - 入口注册：`src/extension.ts`
    - 核心逻辑：`src/editProvider.ts`
