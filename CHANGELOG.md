@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Feature: add optional per-replacement `post` processors after `replace`
+    - Support `expandTab` / `expandTabs` with editor-aware or explicit `tabSize`
+    - Support `trimWhitespace` for trailing whitespace cleanup
+    - Preserve CRLF line endings and standard replacement string semantics
 - Feature: support JSONC external config parsing for `replacerules.configPath`
     - Parse config files with `jsonc-parser`
     - Accept comments and trailing commas in config files

@@ -155,6 +155,68 @@ suite('Extension Test Suite', () => {
 		assert.strictEqual(editor.document.getText(), 'a\r\nb\r\n');
 	});
 
+	test('runRule applies expandTab post-processing with editor tabSize per replacement', async () => {
+		await setReplaceRulesConfig(await writeConfigFile({
+			rules: {
+				'Indent parentheses': {
+					find: '^([ ]*)\\((.*)\\)$',
+					replace: '$1[\n$1\t$2\n$1]',
+					flags: 'gm',
+					post: ['expandTab']
+				}
+			}
+		}));
+
+		const editor = await openEditor('  (x)');
+		editor.options = { tabSize: 2, insertSpaces: true };
+		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
+
+		await vscode.commands.executeCommand('replacerules.runRule', { ruleName: 'Indent parentheses' });
+		assert.strictEqual(editor.document.getText(), '  [\n    x\n  ]');
+	});
+
+	test('runRule applies object-form post-processing with explicit tabSize and trimWhitespace', async () => {
+		await setReplaceRulesConfig(await writeConfigFile({
+			rules: {
+				'Normalize inserted line': {
+					find: '^x$',
+					replace: '\t$& \t',
+					flags: 'gm',
+					post: [
+						{ type: 'expandTabs', tabSize: 4 },
+						'trimWhitespace'
+					]
+				}
+			}
+		}));
+
+		const editor = await openEditor('x\r\nx\r\n');
+		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
+
+		await vscode.commands.executeCommand('replacerules.runRule', { ruleName: 'Normalize inserted line' });
+		assert.strictEqual(editor.document.getText(), '    x\r\n    x\r\n');
+	});
+
+	test('runRule reuses shared post-processing across multi-step rules', async () => {
+		await setReplaceRulesConfig(await writeConfigFile({
+			rules: {
+				'Two step indent': {
+					find: ['cat', 'dog'],
+					replace: ['\tcat', '\tdog'],
+					flags: 'g',
+					post: ['expandTab']
+				}
+			}
+		}));
+
+		const editor = await openEditor('cat dog');
+		editor.options = { tabSize: 3, insertSpaces: true };
+		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
+
+		await vscode.commands.executeCommand('replacerules.runRule', { ruleName: 'Two step indent' });
+		assert.strictEqual(editor.document.getText(), '   cat    dog');
+	});
+
 	test('runRule skips language-restricted rules for other languages', async () => {
 		await setReplaceRulesConfig(await writeConfigFile({
 			rules: {
@@ -257,6 +319,30 @@ suite('Extension Test Suite', () => {
 				Broken: {
 					find: '[',
 					replace: 'x'
+				}
+			}
+		}));
+
+		const editor = await openEditor('sample text');
+		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
+
+		const errors = await captureErrorMessages(async () => {
+			await vscode.commands.executeCommand('replacerules.runRule', { ruleName: 'Broken' });
+			await delay(25);
+		});
+
+		assert.strictEqual(errors.length, 1);
+		assert.match(errors[0], /^Error executing rule Broken:/);
+		assert.strictEqual(editor.document.getText(), 'sample text');
+	});
+
+	test('runRule shows an error for unsupported post processors', async () => {
+		await setReplaceRulesConfig(await writeConfigFile({
+			rules: {
+				Broken: {
+					find: 'a',
+					replace: 'b',
+					post: ['mysteryProcessor']
 				}
 			}
 		}));

@@ -27,6 +27,11 @@ The JSON or JSONC file pointed to by `replacerules.configPath` contains `rules` 
 - `flags` - (Optional) A set of RegEx flags to apply to the rule. If only one set of flags is specified, it will be applied to all `finds` in the rule. The default flags are "gm" (global, multi-line). A list of compatible flags can be found [here](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions#Advanced_searching_with_flags).
 - `languages` - (Optional) An array of workspace language ids that the rule is restricted to. For example, a rule with `languages` set to 'typescript' will only appear in the **Run Rule...** menu if TypeScript is the selected language for the active document.
 - `literal` - (Optional) Perform a non-RegEx, literal search and replace.
+- `post` - (Optional) A lightweight post-processing pipeline applied to each individual replacement result after `replace` is expanded. Supported processors:
+    - `expandTab` - Replace `\t` in the replacement result with spaces. Defaults to the active editor `tabSize`.
+    - `trimWhitespace` - Remove trailing spaces and tabs from each replaced line.
+    - Object form is also supported, for example `{ "type": "expandTabs", "tabSize": 4 }`.
+    - For multi-step rules, a flat `post` array is shared across all `find`/`replace` steps. Use nested arrays for per-step post-processing.
 
 #### Rulesets
 
@@ -59,6 +64,12 @@ External file contents:
         "Remove trailing and leading whitespace": {
             "find": "^\\s*(.*)\\s*$",
             "replace": "$1"
+        },
+        "Latex parenthesis to LR": {
+            "find": "^(\\s*)\\(\\s*([\\s\\S]*?)\\s*\\)(\\s*)$",
+            "flags": "g",
+            "replace": "$1\\LR{\\n$1\\t$2\\n$1}$3",
+            "post": ["expandTab"]
         }
     },
     "rulesets": {

@@ -49,6 +49,7 @@ If a ruleset resolves to zero applicable rules, no edit is attempted.
 - Replacement class
     - Builds a RegExp from find, flags, and literal mode.
     - Ensures global matching by adding g when missing.
+    - Stores an optional per-match post-processing pipeline for replacement output.
 - ReplaceRule class
     - Normalizes scalar and array config values into ordered Replacement steps.
     - Supports appendRule for ruleset composition.
@@ -58,10 +59,11 @@ If a ruleset resolves to zero applicable rules, no edit is attempted.
 - objToArray(obj): Normalizes config field values.
 - rangeUpdate(editor, document, index): Computes effective replace range.
 - normalizeLineEndings(str): Normalizes CRLF to LF for matching only.
+- getPostProcessContext(editor): Reads effective editor tab settings for post processors.
 - loadExternalConfig(path, documentUri): Reads and parses external JSON/JSONC config.
 - parseExternalConfig(rawText, resolvedPath): Parses JSONC text and reports parser errors with file context.
 - resolveConfigPath(path, documentUri): Expands `~/` and resolves workspace-relative paths.
-- applyReplacement(text, replacement): Applies normalized matching while preserving CRLF line endings in output.
+- applyReplacement(text, replacement, context): Applies normalized matching, expands standard replacement string tokens, runs post processors on each replacement result, and preserves CRLF line endings in output.
 - escapeRegExp(str): Escapes literal patterns.
 
 ## Maintenance notes

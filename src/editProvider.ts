@@ -123,6 +123,7 @@ export default class ReplaceRulesEditProvider {
     private async doReplace(rule: ReplaceRule) {
         let e = this.textEditor;
         let d = e.document;
+        let postProcessContext = getPostProcessContext(e);
         let editOptions = { undoStopBefore: false, undoStopAfter: false };
         let numSelections = e.selections.length;
         for (const x of Array(numSelections).keys()) {
@@ -131,7 +132,7 @@ export default class ReplaceRulesEditProvider {
             let range = rangeUpdate(e, d, index);
             for (const r of rule.steps) {
                 let findText = d.getText(range);
-                let updatedText = applyReplacement(findText, r);
+                let updatedText = applyReplacement(findText, r, postProcessContext);
                 if (updatedText === undefined) {
                     continue;
                 }
@@ -169,14 +170,16 @@ class Replacement {
     static defaultFlags = 'gm';
     public find: RegExp | string;
     public replace: string;
+    public post: PostProcessor[];
 
-    public constructor(find: string, replace: string, flags: string, literal = false) {
+    public constructor(find: string, replace: string, flags: string, post: PostProcessor[], literal = false) {
         if (flags) {
             flags = (flags.search('g') === -1) ? flags + 'g' : flags;
         }
         find = literal ? escapeRegExp(find) : find;
         this.find = new RegExp(find, flags || Replacement.defaultFlags);
         this.replace = replace || '';
+        this.post = post;
     }
 }
 
@@ -186,16 +189,18 @@ class ReplaceRule {
     public constructor(rule: any) {
         let ruleSteps: Replacement[] = [];
         let find = objToArray(rule.find);
+        let posts = resolvePostProcessorSteps(rule.post, find.length);
         for (let i = 0; i < find.length; i++) {
-            ruleSteps.push(new Replacement(find[i], objToArray(rule.replace)[i], objToArray(rule.flags)[i], rule.literal));
+            ruleSteps.push(new Replacement(find[i], objToArray(rule.replace)[i], objToArray(rule.flags)[i], posts[i], rule.literal));
         }
         this.steps = ruleSteps;
     }
 
     public appendRule(newRule: any) {
         let find = objToArray(newRule.find);
+        let posts = resolvePostProcessorSteps(newRule.post, find.length);
         for (let i = 0; i < find.length; i++) {
-            this.steps.push(new Replacement(find[i], objToArray(newRule.replace)[i], objToArray(newRule.flags)[i], newRule.literal));
+            this.steps.push(new Replacement(find[i], objToArray(newRule.replace)[i], objToArray(newRule.flags)[i], posts[i], newRule.literal));
         }
     }
 }
@@ -217,9 +222,41 @@ const normalizeLineEndings = (str: string) => {
     return str.replace(new RegExp(/\r\n/, 'g'), '\n');
 }
 
-const applyReplacement = (originalText: string, replacement: Replacement) => {
+type PostProcessor = ExpandTabPostProcessor | TrimWhitespacePostProcessor;
+
+type ExpandTabPostProcessor = {
+    type: 'expandTab';
+    tabSize?: number;
+};
+
+type TrimWhitespacePostProcessor = {
+    type: 'trimWhitespace';
+};
+
+type RawPostProcessor = string | {
+    type: string;
+    tabSize?: number;
+};
+
+type PostProcessContext = {
+    tabSize: number;
+};
+
+const applyReplacement = (originalText: string, replacement: Replacement, context: PostProcessContext) => {
     let normalizedOriginal = normalizeLineEndings(originalText);
-    let normalizedUpdated = normalizedOriginal.replace(replacement.find, replacement.replace);
+    let normalizedUpdated = normalizedOriginal.replace(replacement.find, (...args: ReplacementCallbackArg[]) => {
+        let { match, captures, offset, input, groups } = parseReplacementCallbackArgs(args);
+        let updatedMatch = expandReplacementString(
+            replacement.replace,
+            match,
+            captures,
+            offset,
+            input,
+            groups
+        );
+
+        return applyPostProcessors(updatedMatch, replacement.post, context);
+    });
 
     if (normalizedUpdated === normalizedOriginal) {
         return undefined;
@@ -228,6 +265,195 @@ const applyReplacement = (originalText: string, replacement: Replacement) => {
     return /\r\n/.test(originalText)
         ? normalizedUpdated.replace(new RegExp(/\n/, 'g'), '\r\n')
         : normalizedUpdated;
+}
+
+type ReplacementCallbackArg = string | undefined | number | NamedGroupMap;
+
+type NamedGroupMap = Record<string, string | undefined>;
+
+const getPostProcessContext = (editor: TextEditor): PostProcessContext => {
+    let tabSizeOption = editor.options.tabSize;
+    return {
+        tabSize: typeof tabSizeOption === 'number' && tabSizeOption > 0 ? tabSizeOption : 4
+    };
+}
+
+const isNamedGroupMap = (value: unknown): value is NamedGroupMap => {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+const parseReplacementCallbackArgs = (args: ReplacementCallbackArg[]) => {
+    if (args.length < 3) {
+        throw new Error('Unexpected replacement callback arguments');
+    }
+
+    let groups = undefined;
+    let argsWithoutGroups = args;
+    let lastArg = args[args.length - 1];
+    if (isNamedGroupMap(lastArg)) {
+        groups = lastArg;
+        argsWithoutGroups = args.slice(0, -1);
+    }
+
+    let input = argsWithoutGroups[argsWithoutGroups.length - 1];
+    let offset = argsWithoutGroups[argsWithoutGroups.length - 2];
+    let captures = argsWithoutGroups.slice(1, -2);
+
+    if (typeof argsWithoutGroups[0] !== 'string' || typeof offset !== 'number' || typeof input !== 'string') {
+        throw new Error('Unexpected replacement callback argument types');
+    }
+
+    return {
+        match: argsWithoutGroups[0],
+        captures: captures.map((capture) => {
+            if (capture === undefined || typeof capture === 'string') {
+                return capture;
+            }
+            throw new Error('Unexpected capture type in replacement callback');
+        }),
+        offset,
+        input,
+        groups
+    };
+}
+
+const expandReplacementString = (
+    template: string,
+    match: string,
+    captures: Array<string | undefined>,
+    offset: number,
+    input: string,
+    groups?: NamedGroupMap
+) => {
+    return template.replace(/\$([$&`']|[1-9][0-9]?|<[^>]+>)/g, (token, specifier: string) => {
+        switch (specifier) {
+            case '$':
+                return '$';
+            case '&':
+                return match;
+            case '`':
+                return input.slice(0, offset);
+            case '\'':
+                return input.slice(offset + match.length);
+            default:
+                if (specifier.startsWith('<') && specifier.endsWith('>')) {
+                    let groupName = specifier.slice(1, -1);
+                    return groups && Object.prototype.hasOwnProperty.call(groups, groupName)
+                        ? groups[groupName] || ''
+                        : token;
+                }
+
+                return resolveIndexedCapture(specifier, captures, token);
+        }
+    });
+}
+
+const resolveIndexedCapture = (specifier: string, captures: Array<string | undefined>, token: string) => {
+    if (specifier.length === 2) {
+        let twoDigitIndex = Number(specifier);
+        if (twoDigitIndex <= captures.length) {
+            return captures[twoDigitIndex - 1] || '';
+        }
+
+        let oneDigitIndex = Number(specifier[0]);
+        if (oneDigitIndex <= captures.length) {
+            return (captures[oneDigitIndex - 1] || '') + specifier[1];
+        }
+    }
+
+    let captureIndex = Number(specifier);
+    return captureIndex <= captures.length
+        ? captures[captureIndex - 1] || ''
+        : token;
+}
+
+const applyPostProcessors = (value: string, processors: PostProcessor[], context: PostProcessContext) => {
+    return processors.reduce((updatedValue, processor) => applyPostProcessor(updatedValue, processor, context), value);
+}
+
+const applyPostProcessor = (value: string, processor: PostProcessor, context: PostProcessContext) => {
+    switch (processor.type) {
+        case 'expandTab':
+            return value.replace(/\t/g, ' '.repeat(processor.tabSize || context.tabSize));
+        case 'trimWhitespace':
+            return value.replace(/[ \t]+(?=\n|$)/g, '');
+    }
+}
+
+const resolvePostProcessorSteps = (rawPost: unknown, stepCount: number) => {
+    if (rawPost === undefined) {
+        return Array.from({ length: stepCount }, () => []);
+    }
+
+    if (stepCount === 1) {
+        return [normalizePostProcessors(rawPost)];
+    }
+
+    if (!Array.isArray(rawPost) || rawPost.every(isRawPostProcessor)) {
+        let sharedProcessors = normalizePostProcessors(rawPost);
+        return Array.from({ length: stepCount }, () => sharedProcessors.slice());
+    }
+
+    if (rawPost.length !== stepCount) {
+        throw new Error(`Rule post array length ${rawPost.length} does not match find length ${stepCount}`);
+    }
+
+    return rawPost.map(normalizePostProcessors);
+}
+
+const normalizePostProcessors = (rawPost: unknown) => {
+    if (rawPost === undefined) {
+        return [];
+    }
+
+    if (Array.isArray(rawPost)) {
+        return rawPost.map(parsePostProcessor);
+    }
+
+    return [parsePostProcessor(rawPost)];
+}
+
+const isRawPostProcessor = (value: unknown): value is RawPostProcessor => {
+    if (typeof value === 'string') {
+        return true;
+    }
+
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+        return false;
+    }
+
+    return typeof (value as { type?: unknown }).type === 'string';
+}
+
+const parsePostProcessor = (rawProcessor: unknown): PostProcessor => {
+    if (rawProcessor === 'expandTab' || rawProcessor === 'expandTabs') {
+        return { type: 'expandTab' };
+    }
+
+    if (rawProcessor === 'trimWhitespace') {
+        return { type: 'trimWhitespace' };
+    }
+
+    if (!isRawPostProcessor(rawProcessor) || typeof rawProcessor === 'string') {
+        throw new Error(`Unsupported post processor: ${JSON.stringify(rawProcessor)}`);
+    }
+
+    if (rawProcessor.type === 'expandTab' || rawProcessor.type === 'expandTabs') {
+        if (rawProcessor.tabSize !== undefined && (!Number.isInteger(rawProcessor.tabSize) || rawProcessor.tabSize <= 0)) {
+            throw new Error(`Invalid expandTab tabSize: ${rawProcessor.tabSize}`);
+        }
+
+        return {
+            type: 'expandTab',
+            tabSize: rawProcessor.tabSize
+        };
+    }
+
+    if (rawProcessor.type === 'trimWhitespace') {
+        return { type: 'trimWhitespace' };
+    }
+
+    throw new Error(`Unsupported post processor type: ${rawProcessor.type}`);
 }
 
 type ExternalReplaceRulesConfig = {
