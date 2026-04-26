@@ -1,16 +1,14 @@
 # Replace Rules
 
-Create search/replace rules. A "rule" is one or more search/replace patterns that can be applied to the entire document, or one or more selections of text.
+**This is a personal fork of [bhughes339/vscode-replacerules](https://github.com/bhughes339/vscode-replacerules).**
 
-Replace Rules uses JavaScript regular expressions for searching and replacing. [Click here](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions) for an overview of JavaScript RegEx.
-
-Inspired by the Sublime Text plugin [RegReplace](https://github.com/facelessuser/RegReplace).
+Create search/replace rules using JavaScript RegEx. A "rule" is one or more search/replace patterns that can be applied to the entire document, or one or more selections of text.
 
 ## Getting started
 
 1. Set `replacerules.configPath` in `settings.json`.
 
-2. Open the Command Palette and select **Replace Rules: Run Rule...**.
+2. Open the Command Palette and select **Replace Rules: Run Rule ...**
 
 ## Configuration options
 
@@ -41,11 +39,9 @@ The JSON file pointed to by `replacerules.configPath` contains `rules` and `rule
 
 `replacerules.configPath` points to a JSON file that contains `rules` and `rulesets`.
 
-- Absolute paths are supported.
-- Windows-style backslashes are passed through as written in `settings.json`.
-- Paths containing spaces are supported.
-- `~/` expands to the current home directory.
+- Absolute, relative, and space-containing paths are supported.
 - Relative paths are resolved from the current workspace folder when one exists.
+- `~/` expands to the current home directory.
 - If `configPath` is unset or the file cannot be loaded, no Replace Rules configuration is available.
 
 ## Example configuration
