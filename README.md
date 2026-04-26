@@ -1,4 +1,6 @@
-# TextReplaceRule
+# [TextReplaceRule](https://github.com/yuriever/vscode-replacerules.git)
+
+**Originally forked from [bhughes339/vscode-replacerules](https://github.com/bhughes339/vscode-replacerules). TextReplaceRule is now an independent extension.**
 
 TextReplaceRule runs text replacement rules in VS Code from an external JSON file.
 
@@ -47,13 +49,11 @@ Optional fields supported by both rules and pipelines:
 - `name`: Quick Pick label
 - `description`: Quick Pick secondary text
 
-If `name` is omitted, the object key is shown.
-
 ### `regexReplace`
 
 Required:
 
-- `type: "regexReplace"`
+- `type`: `"regexReplace"`
 - `find`: string or non-empty string array
 
 Optional:
@@ -75,7 +75,7 @@ Behavior:
 
 Required:
 
-- `type: "literalMap"`
+- `type`: `"literalMap"`
 - `map`: object from literal source text to literal replacement text
 
 Optional:
