@@ -79,6 +79,46 @@ suite('Extension Test Suite', () => {
 		await waitForDocumentText(editor.document, 'baz');
 	});
 
+	test('runRule only updates non-empty selections', async () => {
+		await setReplaceRulesConfig(await writeConfigFile({
+			rules: {
+				'Cat to Dog': {
+					find: 'cat',
+					replace: 'dog',
+					flags: 'g'
+				}
+			}
+		}));
+
+		const editor = await openEditor('cat fox cat');
+		editor.selections = [
+			new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 3)),
+			new vscode.Selection(new vscode.Position(0, 8), new vscode.Position(0, 11))
+		];
+
+		await vscode.commands.executeCommand('replacerules.runRule', { ruleName: 'Cat to Dog' });
+		await waitForDocumentText(editor.document, 'dog fox dog');
+	});
+
+	test('runRule skips language-restricted rules for other languages', async () => {
+		await setReplaceRulesConfig(await writeConfigFile({
+			rules: {
+				'TypeScript only': {
+					find: 'a',
+					replace: 'A',
+					flags: 'g',
+					languages: ['typescript']
+				}
+			}
+		}));
+
+		const editor = await openEditor('a cat and a hat');
+		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
+
+		await vscode.commands.executeCommand('replacerules.runRule', { ruleName: 'TypeScript only' });
+		await waitForDocumentText(editor.document, 'a cat and a hat');
+	});
+
 	test('clipboard replace commands are not registered', async () => {
 		const commands = await vscode.commands.getCommands(true);
 		assert.strictEqual(commands.includes('replacerules.pasteAndReplace'), false);
@@ -117,6 +157,46 @@ suite('Extension Test Suite', () => {
 		await vscode.commands.executeCommand('replacerules.runRuleset', { rulesetName: 'Collapse' });
 		await waitForDocumentText(editor.document, 'baz');
 	});
+
+	test('runRule shows an error for invalid regex config', async () => {
+		await setReplaceRulesConfig(await writeConfigFile({
+			rules: {
+				Broken: {
+					find: '[',
+					replace: 'x'
+				}
+			}
+		}));
+
+		const editor = await openEditor('sample text');
+		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
+
+		const errors = await captureErrorMessages(async () => {
+			await vscode.commands.executeCommand('replacerules.runRule', { ruleName: 'Broken' });
+			await delay(25);
+		});
+
+		assert.strictEqual(errors.length, 1);
+		assert.match(errors[0], /^Error executing rule Broken:/);
+		assert.strictEqual(editor.document.getText(), 'sample text');
+	});
+
+	test('runRule shows an error when configPath cannot be loaded', async () => {
+		const missingPath = path.join(os.tmpdir(), 'replace rules test', `missing-${Date.now()}.json`);
+		await setReplaceRulesConfig(missingPath);
+
+		const editor = await openEditor('sample text');
+		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
+
+		const errors = await captureErrorMessages(async () => {
+			await vscode.commands.executeCommand('replacerules.runRule', { ruleName: 'Anything' });
+			await delay(25);
+		});
+
+		assert.strictEqual(errors.length, 1);
+		assert.match(errors[0], /^Error loading replacerules\.configPath:/);
+		assert.strictEqual(editor.document.getText(), 'sample text');
+	});
 });
 
 async function setReplaceRulesConfig(configPath: unknown): Promise<void> {
@@ -130,6 +210,23 @@ async function writeConfigFile(config: unknown): Promise<string> {
 	await fs.mkdir(fixtureDir, { recursive: true });
 	await fs.writeFile(fixturePath, JSON.stringify(config), 'utf8');
 	return fixturePath;
+}
+
+async function captureErrorMessages(run: () => Promise<void>): Promise<string[]> {
+	const errors: string[] = [];
+	const windowAny = vscode.window as any;
+	const originalShowErrorMessage = windowAny.showErrorMessage;
+	windowAny.showErrorMessage = async (message: string) => {
+		errors.push(String(message));
+		return undefined;
+	};
+
+	try {
+		await run();
+		return errors;
+	} finally {
+		windowAny.showErrorMessage = originalShowErrorMessage;
+	}
 }
 
 async function openEditor(content: string): Promise<vscode.TextEditor> {

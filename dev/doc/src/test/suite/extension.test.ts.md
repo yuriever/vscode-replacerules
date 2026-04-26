@@ -13,13 +13,18 @@ This validates integration between command registration, config parsing, and rep
 
 1. runRule replaces the full document when there is a single empty selection.
 2. runRuleset applies multiple rules in sequence.
-3. Removed clipboard replace commands are no longer registered.
-4. runRuleset loads external config from `replacerules.configPath`, including paths with spaces.
+3. runRule only updates explicit non-empty selections in a multi-selection editor.
+4. runRule skips rules whose `languages` filter does not match the active document.
+5. Removed clipboard replace commands are no longer registered.
+6. runRuleset loads external config from `replacerules.configPath`, including paths with spaces.
+7. runRule reports invalid regex config errors without modifying the document.
+8. runRule reports missing `configPath` file errors without modifying the document.
 
 ## Isolation helpers
 
 - setReplaceRulesConfig(...): Updates replacerules.configPath for each test.
 - writeConfigFile(...): Writes temporary external JSON config files for test cases.
+- captureErrorMessages(...): Temporarily intercepts VS Code error notifications for assertions.
 - openEditor(content): Creates and shows a temporary plaintext editor.
 - waitForDocumentText(...): Polls until async editor edits are visible.
 
