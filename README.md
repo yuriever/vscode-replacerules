@@ -1,9 +1,6 @@
-# TextReplaceRule
-
 # [TextReplaceRule](https://github.com/yuriever/vscode-replacerules.git)
 
 **Originally forked from [bhughes339/vscode-replacerules](https://github.com/bhughes339/vscode-replacerules). TextReplaceRule is now an independent extension.**
-
 
 TextReplaceRule runs configurable text rewrites in VS Code from an external JSON or JSONC file.
 
@@ -12,8 +9,8 @@ TextReplaceRule runs configurable text rewrites in VS Code from an external JSON
 1. Create a config file.
 2. Set `"text-replace-rule.configPath"` in `settings.json`.
 3. Run one of these commands from the Command Palette:
-   - `TextReplaceRule: Run Rule...`
-   - `TextReplaceRule: Run Rule Pipeline...`
+    - `TextReplaceRule: Run Rule...`
+    - `TextReplaceRule: Run Rule Pipeline...`
 
 Notes:
 
@@ -149,7 +146,7 @@ Recommended order for multiline formatting:
     "latex-inline-lr": {
       "type": "regexReplace",
       "find": "^\\((.*)\\)$",
-      "replace": "\\LR{\\n\\t$1\\n}",
+      "replace": "\\foo{\\n\\t$1\\n}",
       "post": [
         { "type": "indentLine", "mode": "inline" },
         "expandTab",
