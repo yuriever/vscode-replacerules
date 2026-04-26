@@ -2,11 +2,21 @@
 
 ## Unreleased
 
-- Feature: add optional per-replacement `post` processors after `replace`
-    - Support `expandTab` / `expandTabs` with editor-aware or explicit `tabSize`
-    - Support `trimWhitespace` for trailing whitespace cleanup
-    - Preserve CRLF line endings and standard replacement string semantics
-- Feature: support JSONC external config parsing for `replacerules.configPath`
+- Breaking change: rename the extension namespace from `replacerules` to `textReplaceRule`
+    - Rename commands to `textReplaceRule.runRule` and `textReplaceRule.runRulePipeline`
+    - Rename configuration key to `textReplaceRule.configPath`
+- Breaking change: replace `rulesets` with `rulePipelines`
+    - Rename command arguments and user-facing terminology to "rule pipeline"
+- Breaking change: remove `replacerules.stringifyRegex`
+- Breaking change: replace ad hoc rule shapes with typed rules
+    - Support only `regexReplace` and `literalMap`
+    - Remove `literal`, `flags`, `languages`, and `rulesets`
+    - Rename `flags` to `flag` and `languages` to `language`
+- Feature: add `literalMap` for bulk literal lookup-and-replace
+- Feature: add optional `name` and `description` metadata for rules and rule pipelines
+- Feature: support `post: ["expandTab"]` for per-replacement tab expansion
+- Performance: execute rule chains in memory and commit changes through a single editor edit
+- Feature: support JSONC external config parsing for `textReplaceRule.configPath`
     - Parse config files with `jsonc-parser`
     - Accept comments and trailing commas in config files
 
@@ -14,7 +24,7 @@
     - Update VS Code engine baseline to `^1.116.0`
     - Update TypeScript, ESLint, Mocha, Glob, Node/VS Code type packages, and VS Code test runner
 - Maintenance: modernize test suite loader for current `mocha` and `glob` APIs
-- No functional behavior changes to replace rules, rulesets, or clipboard commands
+- No clipboard command changes
 
 ## 0.4.2
 
@@ -77,8 +87,8 @@
     - The old format will be backed up to `replacerules.oldrules` in case there is any data loss during the conversion. This can be safely removed from your configurations at any time.
 - Add support for rulesets (`replacerules.rulesets`) which run multiple rules in sequence. See README for format
 - Allow specific rules and rulesets to be bound to keyboard shortcuts
-    - Rules - `{command: 'replacerules.runRule', args: ruleName: { <name of rule> }}`
-    - Rulesets - `{command: 'replacerules.runRuleSet', args: ruleSet: { <name of ruleset> }}`
+    - Rules - `{command: 'textReplaceRule.runRule', args: ruleName: { <name of rule> }}`
+    - Rulesets - `{command: 'textReplaceRule.runRuleSet', args: ruleSet: { <name of ruleset> }}`
 
 ## 0.1.7
 

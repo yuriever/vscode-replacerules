@@ -1,8 +1,8 @@
 {
-    "name": "replacerules",
-    "displayName": "Replace Rules",
-    "description": "Create search/replace rules using Javascript regular expressions",
-    "version": "0.5.1",
+    "name": "textReplaceRule",
+    "displayName": "TextReplaceRule",
+    "description": "Create regex and literal-map search/replace rules",
+    "version": "0.6.0",
     "publisher": "Yuriever",
     "engines": {
         "vscode": "^1.116.0"
@@ -22,36 +22,30 @@
         "regreplace"
     ],
     "activationEvents": [
-        "onCommand:replacerules.runRule",
-        "onCommand:replacerules.runRuleset",
-        "onCommand:replacerules.stringifyRegex"
+        "onCommand:textReplaceRule.runRule",
+        "onCommand:textReplaceRule.runRulePipeline"
     ],
     "main": "./out/extension.js",
     "contributes": {
         "commands": [
             {
-                "command": "replacerules.runRule",
+                "command": "textReplaceRule.runRule",
                 "title": "Run Rule...",
-                "category": "Replace Rules"
+                "category": "TextReplaceRule"
             },
             {
-                "command": "replacerules.runRuleset",
-                "title": "Run Ruleset...",
-                "category": "Replace Rules"
-            },
-            {
-                "command": "replacerules.stringifyRegex",
-                "title": "Stringify regular expression",
-                "category": "Replace Rules"
+                "command": "textReplaceRule.runRulePipeline",
+                "title": "Run Rule Pipeline...",
+                "category": "TextReplaceRule"
             }
         ],
         "configuration": {
             "type": "object",
-            "title": "Replace Rules",
+            "title": "TextReplaceRule",
             "properties": {
-                "replacerules.configPath": {
+                "textReplaceRule.configPath": {
                     "type": "string",
-                    "description": "Path to a JSON or JSONC file containing Replace Rules configuration. Supports absolute paths, paths with spaces, ~/ expansion, and workspace-relative paths."
+                    "description": "Path to a JSON or JSONC file containing TextReplaceRule configuration. Supports absolute paths, paths with spaces, ~/ expansion, and workspace-relative paths."
                 }
             }
         }

@@ -4,13 +4,112 @@ import * as os from 'os';
 import * as path from 'path';
 import { parse as parseJsonc, ParseError, printParseErrorCode } from 'jsonc-parser';
 
-import { TextEditor, Range } from 'vscode';
+import { Range, TextEditor } from 'vscode';
 import Window = vscode.window;
 
-export default class ReplaceRulesEditProvider {
+type RuleDefinition = RegexReplaceRule | LiteralMapRule;
+
+type RegexReplaceRule = {
+    type: 'regexReplace';
+    name?: string;
+    description?: string;
+    language?: string[];
+    post: PostProcessor[];
+    steps: RegexReplaceStep[];
+};
+
+type LiteralMapRule = {
+    type: 'literalMap';
+    name?: string;
+    description?: string;
+    language?: string[];
+    post: PostProcessor[];
+    steps: [LiteralMapStep];
+};
+
+type RegexReplaceStep = {
+    kind: 'regexReplace';
+    find: RegExp;
+    replace: string;
+    post: PostProcessor[];
+};
+
+type LiteralMapStep = {
+    kind: 'literalMap';
+    find: RegExp;
+    replacements: Record<string, string>;
+    post: PostProcessor[];
+};
+
+type ExecutionStep = RegexReplaceStep | LiteralMapStep;
+
+type RulePipeline = {
+    name?: string;
+    description?: string;
+    rules: string[];
+};
+
+type TextReplaceRuleConfig = {
+    rules: Record<string, RuleDefinition>;
+    rulePipelines: Record<string, RulePipeline>;
+};
+
+type RawRuleDefinition = {
+    type?: unknown;
+    name?: unknown;
+    description?: unknown;
+    find?: unknown;
+    replace?: unknown;
+    flag?: unknown;
+    flags?: unknown;
+    language?: unknown;
+    languages?: unknown;
+    literal?: unknown;
+    map?: unknown;
+    post?: unknown;
+};
+
+type RawRulePipeline = {
+    name?: unknown;
+    description?: unknown;
+    rules?: unknown;
+};
+
+type RawTextReplaceRuleConfig = {
+    rules?: unknown;
+    rulePipelines?: unknown;
+    rulesets?: unknown;
+};
+
+type PostProcessor = {
+    type: 'expandTab';
+};
+
+type PostProcessContext = {
+    tabSize: number;
+};
+
+type ReplacementCallbackArg = string | undefined | number | NamedGroupMap;
+
+type NamedGroupMap = Record<string, string | undefined>;
+
+type PendingEdit = {
+    range: Range;
+    text: string;
+};
+
+type ReplaceTarget = {
+    range: Range;
+    startOffset: number;
+};
+
+type QuickPickEntry = vscode.QuickPickItem & {
+    key: string;
+};
+
+export default class TextReplaceRuleEditProvider {
     private textEditor: TextEditor;
-    private configRules: any;
-    private configRulesets: any;
+    private config: TextReplaceRuleConfig;
 
     public async pickRuleAndRun() {
         let rules = this.getQPRules();
@@ -20,266 +119,214 @@ export default class ReplaceRulesEditProvider {
         }
     }
 
-    public async pickRulesetAndRun() {
-        let rulesets = this.getQPRulesets();
-        let qpItem = await vscode.window.showQuickPick(rulesets);
+    public async pickRulePipelineAndRun() {
+        let rulePipelines = this.getQPRulePipelines();
+        let qpItem = await vscode.window.showQuickPick(rulePipelines);
         if (qpItem) {
-            await this.runRuleset(qpItem.key);
+            await this.runRulePipeline(qpItem.key);
         }
     }
 
-    private getQPRules(): any[] {
-        let language = this.textEditor.document.languageId;
-        let configRules = this.configRules;
+    private getQPRules(): QuickPickEntry[] {
+        let languageId = this.textEditor.document.languageId;
         let items = [];
-        for (const r in configRules) {
-            let rule = configRules[r];
-            if (Array.isArray(rule.languages) && rule.languages.indexOf(language) === -1) {
+        for (const ruleName in this.config.rules) {
+            let rule = this.config.rules[ruleName];
+            if (!ruleMatchesLanguage(rule, languageId)) {
                 continue;
             }
-            if (rule.find) {
-                try {
-                    items.push({
-                        label: "Replace Rule: " + r,
-                        description: "",
-                        key: r
-                    });
-                } catch (err: any) {
-                    Window.showErrorMessage('Error parsing rule ' + r + ': ' + err.message);
-                }
-            }
+            items.push({
+                label: rule.name || ruleName,
+                description: rule.description || "",
+                detail: rule.name && rule.name !== ruleName ? `Key: ${ruleName}` : "",
+                key: ruleName
+            });
         }
         return items;
     }
 
-    private getQPRulesets(): any[] {
-        let configRulesets = this.configRulesets;
+    private getQPRulePipelines(): QuickPickEntry[] {
         let items = [];
-        for (const r in configRulesets) {
-            let ruleset = configRulesets[r];
-            if (Array.isArray(ruleset.rules)) {
-                try {
-                    items.push({
-                        label: "Ruleset: " + r,
-                        description: "",
-                        key: r
-                    });
-                } catch (err: any) {
-                    Window.showErrorMessage('Error parsing ruleset ' + r + ': ' + err.message);
-                }
-            }
+        for (const rulePipelineName in this.config.rulePipelines) {
+            let rulePipeline = this.config.rulePipelines[rulePipelineName];
+            items.push({
+                label: rulePipeline.name || rulePipelineName,
+                description: rulePipeline.description || "",
+                detail: rulePipeline.name && rulePipeline.name !== rulePipelineName ? `Key: ${rulePipelineName}` : "",
+                key: rulePipelineName
+            });
         }
         return items;
     }
 
     public async runSingleRule(ruleName: string) {
-        let rule = this.configRules[ruleName];
-        if (rule) {
-            let language = this.textEditor.document.languageId;
-            if (Array.isArray(rule.languages) && rule.languages.indexOf(language) === -1) {
-                return;
-            }
-            try {
-                await this.doReplace(new ReplaceRule(rule));
-            } catch (err: any) {
-                Window.showErrorMessage('Error executing rule ' + ruleName + ': ' + err.message);
-            }
+        let rule = this.config.rules[ruleName];
+        if (!rule) {
+            return;
         }
-    }
 
-    public async runRuleset(rulesetName: string) {
-        let language = this.textEditor.document.languageId;
-        let ruleset = this.configRulesets[rulesetName];
-        if (!ruleset || !Array.isArray(ruleset.rules)) {
+        if (!ruleMatchesLanguage(rule, this.textEditor.document.languageId)) {
             return;
         }
 
         try {
-            let matchingRules = [];
-            for (const ruleName of ruleset.rules) {
-                let rule = this.configRules[ruleName];
-                if (!rule) {
-                    continue;
-                }
-                if (Array.isArray(rule.languages) && rule.languages.indexOf(language) === -1) {
-                    continue;
-                }
-                matchingRules.push(rule);
-            }
-
-            if (matchingRules.length === 0) {
-                return;
-            }
-
-            let [firstRule, ...remainingRules] = matchingRules;
-            let ruleObject = new ReplaceRule(firstRule);
-            remainingRules.forEach(rule => ruleObject.appendRule(rule));
-            await this.doReplace(ruleObject);
+            await this.doReplace(rule.steps);
         } catch (err: any) {
-            Window.showErrorMessage('Error executing ruleset ' + rulesetName + ': ' + err.message);
+            Window.showErrorMessage('Error executing rule ' + ruleName + ': ' + err.message);
         }
     }
 
-    private async doReplace(rule: ReplaceRule) {
-        let e = this.textEditor;
-        let d = e.document;
-        let postProcessContext = getPostProcessContext(e);
-        let editOptions = { undoStopBefore: false, undoStopAfter: false };
-        let numSelections = e.selections.length;
-        for (const x of Array(numSelections).keys()) {
-            let sel = e.selections[x];
-            let index = (numSelections === 1 && sel.isEmpty) ? -1 : x;
-            let range = rangeUpdate(e, d, index);
-            for (const r of rule.steps) {
-                let findText = d.getText(range);
-                let updatedText = applyReplacement(findText, r, postProcessContext);
-                if (updatedText === undefined) {
-                    continue;
-                }
-                await e.edit((edit) => {
-                    edit.replace(range, updatedText);
-                }, editOptions);
-                range = rangeUpdate(e, d, index);
+    public async runRulePipeline(rulePipelineName: string) {
+        let rulePipeline = this.config.rulePipelines[rulePipelineName];
+        if (!rulePipeline) {
+            return;
+        }
+
+        let languageId = this.textEditor.document.languageId;
+        let steps: ExecutionStep[] = [];
+        for (const ruleName of rulePipeline.rules) {
+            let rule = this.config.rules[ruleName];
+            if (ruleMatchesLanguage(rule, languageId)) {
+                steps.push(...rule.steps);
             }
         }
-        return;
+
+        if (steps.length === 0) {
+            return;
+        }
+
+        try {
+            await this.doReplace(steps);
+        } catch (err: any) {
+            Window.showErrorMessage('Error executing rule pipeline ' + rulePipelineName + ': ' + err.message);
+        }
+    }
+
+    private async doReplace(steps: ExecutionStep[]) {
+        let editor = this.textEditor;
+        let document = editor.document;
+        let context = getPostProcessContext(editor);
+        let targets = getReplaceTargets(editor, document);
+        let edits: PendingEdit[] = [];
+
+        for (const target of targets) {
+            let originalText = document.getText(target.range);
+            let updatedText = applySteps(originalText, steps, context);
+            if (updatedText !== originalText) {
+                edits.push({
+                    range: target.range,
+                    text: updatedText
+                });
+            }
+        }
+
+        if (edits.length === 0) {
+            return;
+        }
+
+        edits.sort((left, right) => {
+            let leftOffset = document.offsetAt(left.range.start);
+            let rightOffset = document.offsetAt(right.range.start);
+            return rightOffset - leftOffset;
+        });
+
+        await editor.edit((editBuilder) => {
+            edits.forEach((edit) => {
+                editBuilder.replace(edit.range, edit.text);
+            });
+        }, { undoStopBefore: false, undoStopAfter: false });
     }
 
     constructor(textEditor: TextEditor) {
         this.textEditor = textEditor;
-        let config = vscode.workspace.getConfiguration("replacerules");
+        let config = vscode.workspace.getConfiguration("textReplaceRule");
         let configPath = config.get<string>("configPath");
 
         if (configPath) {
             try {
-                let externalConfig = loadExternalConfig(configPath, textEditor.document.uri);
-                this.configRules = externalConfig.rules || {};
-                this.configRulesets = externalConfig.rulesets || {};
+                this.config = loadExternalConfig(configPath, textEditor.document.uri);
                 return;
             } catch (err: any) {
-                Window.showErrorMessage('Error loading replacerules.configPath: ' + err.message);
+                Window.showErrorMessage('Error loading textReplaceRule.configPath: ' + err.message);
             }
         }
 
-        this.configRules = {};
-        this.configRulesets = {};
+        this.config = {
+            rules: {},
+            rulePipelines: {}
+        };
     }
 }
 
-class Replacement {
-    static defaultFlags = 'gm';
-    public find: RegExp | string;
-    public replace: string;
-    public post: PostProcessor[];
-
-    public constructor(find: string, replace: string, flags: string, post: PostProcessor[], literal = false) {
-        if (flags) {
-            flags = (flags.search('g') === -1) ? flags + 'g' : flags;
-        }
-        find = literal ? escapeRegExp(find) : find;
-        this.find = new RegExp(find, flags || Replacement.defaultFlags);
-        this.replace = replace || '';
-        this.post = post;
-    }
+const ruleMatchesLanguage = (rule: RuleDefinition, languageId: string) => {
+    return !Array.isArray(rule.language) || rule.language.indexOf(languageId) !== -1;
 }
 
-class ReplaceRule {
-    public steps: Replacement[];
-
-    public constructor(rule: any) {
-        let ruleSteps: Replacement[] = [];
-        let find = objToArray(rule.find);
-        let posts = resolvePostProcessorSteps(rule.post, find.length);
-        for (let i = 0; i < find.length; i++) {
-            ruleSteps.push(new Replacement(find[i], objToArray(rule.replace)[i], objToArray(rule.flags)[i], posts[i], rule.literal));
-        }
-        this.steps = ruleSteps;
+const getReplaceTargets = (editor: TextEditor, document: vscode.TextDocument): ReplaceTarget[] => {
+    if (editor.selections.length === 1 && editor.selections[0].isEmpty) {
+        let fullDocumentRange = new Range(document.positionAt(0), document.positionAt(document.getText().length));
+        return [{
+            range: fullDocumentRange,
+            startOffset: 0
+        }];
     }
 
-    public appendRule(newRule: any) {
-        let find = objToArray(newRule.find);
-        let posts = resolvePostProcessorSteps(newRule.post, find.length);
-        for (let i = 0; i < find.length; i++) {
-            this.steps.push(new Replacement(find[i], objToArray(newRule.replace)[i], objToArray(newRule.flags)[i], posts[i], newRule.literal));
-        }
-    }
+    return editor.selections.map((selection) => ({
+        range: new Range(selection.start, selection.end),
+        startOffset: document.offsetAt(selection.start)
+    })).sort((left, right) => right.startOffset - left.startOffset);
 }
 
-const objToArray = (obj: any) => {
-    return (Array.isArray(obj)) ? obj : Array(obj);
+const applySteps = (originalText: string, steps: ExecutionStep[], context: PostProcessContext) => {
+    let updatedText = originalText;
+    for (const step of steps) {
+        updatedText = applyStep(updatedText, step, context);
+    }
+    return updatedText;
 }
 
-const rangeUpdate = (e: TextEditor, d: vscode.TextDocument, index: number) => {
-    if (index === -1) {
-        return new Range(d.positionAt(0), d.lineAt(d.lineCount - 1).range.end)
-    } else {
-        let sel = e.selections[index];
-        return new Range(sel.start, sel.end);
+const applyStep = (originalText: string, step: ExecutionStep, context: PostProcessContext) => {
+    let normalizedOriginal = normalizeLineEndings(originalText);
+    let normalizedUpdated = step.kind === 'regexReplace'
+        ? applyRegexReplaceStep(normalizedOriginal, step, context)
+        : applyLiteralMapStep(normalizedOriginal, step, context);
+
+    if (normalizedUpdated === normalizedOriginal) {
+        return originalText;
     }
+
+    return restoreLineEndings(originalText, normalizedUpdated);
+}
+
+const applyRegexReplaceStep = (originalText: string, step: RegexReplaceStep, context: PostProcessContext) => {
+    return originalText.replace(step.find, (...args: ReplacementCallbackArg[]) => {
+        let { match, captures, offset, input, groups } = parseReplacementCallbackArgs(args);
+        let updatedMatch = expandReplacementString(step.replace, match, captures, offset, input, groups);
+        return applyPostProcessors(updatedMatch, step.post, context);
+    });
+}
+
+const applyLiteralMapStep = (originalText: string, step: LiteralMapStep, context: PostProcessContext) => {
+    return originalText.replace(step.find, (match) => {
+        return applyPostProcessors(step.replacements[match], step.post, context);
+    });
 }
 
 const normalizeLineEndings = (str: string) => {
     return str.replace(new RegExp(/\r\n/, 'g'), '\n');
 }
 
-type PostProcessor = ExpandTabPostProcessor | TrimWhitespacePostProcessor;
-
-type ExpandTabPostProcessor = {
-    type: 'expandTab';
-    tabSize?: number;
-};
-
-type TrimWhitespacePostProcessor = {
-    type: 'trimWhitespace';
-};
-
-type RawPostProcessor = string | {
-    type: string;
-    tabSize?: number;
-};
-
-type PostProcessContext = {
-    tabSize: number;
-};
-
-const applyReplacement = (originalText: string, replacement: Replacement, context: PostProcessContext) => {
-    let normalizedOriginal = normalizeLineEndings(originalText);
-    let normalizedUpdated = normalizedOriginal.replace(replacement.find, (...args: ReplacementCallbackArg[]) => {
-        let { match, captures, offset, input, groups } = parseReplacementCallbackArgs(args);
-        let updatedMatch = expandReplacementString(
-            replacement.replace,
-            match,
-            captures,
-            offset,
-            input,
-            groups
-        );
-
-        return applyPostProcessors(updatedMatch, replacement.post, context);
-    });
-
-    if (normalizedUpdated === normalizedOriginal) {
-        return undefined;
-    }
-
+const restoreLineEndings = (originalText: string, updatedText: string) => {
     return /\r\n/.test(originalText)
-        ? normalizedUpdated.replace(new RegExp(/\n/, 'g'), '\r\n')
-        : normalizedUpdated;
+        ? updatedText.replace(new RegExp(/\n/, 'g'), '\r\n')
+        : updatedText;
 }
-
-type ReplacementCallbackArg = string | undefined | number | NamedGroupMap;
-
-type NamedGroupMap = Record<string, string | undefined>;
 
 const getPostProcessContext = (editor: TextEditor): PostProcessContext => {
     let tabSizeOption = editor.options.tabSize;
     return {
         tabSize: typeof tabSizeOption === 'number' && tabSizeOption > 0 ? tabSizeOption : 4
     };
-}
-
-const isNamedGroupMap = (value: unknown): value is NamedGroupMap => {
-    return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 const parseReplacementCallbackArgs = (args: ReplacementCallbackArg[]) => {
@@ -315,6 +362,10 @@ const parseReplacementCallbackArgs = (args: ReplacementCallbackArg[]) => {
         input,
         groups
     };
+}
+
+const isNamedGroupMap = (value: unknown): value is NamedGroupMap => {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 const expandReplacementString = (
@@ -374,105 +425,17 @@ const applyPostProcessors = (value: string, processors: PostProcessor[], context
 const applyPostProcessor = (value: string, processor: PostProcessor, context: PostProcessContext) => {
     switch (processor.type) {
         case 'expandTab':
-            return value.replace(/\t/g, ' '.repeat(processor.tabSize || context.tabSize));
-        case 'trimWhitespace':
-            return value.replace(/[ \t]+(?=\n|$)/g, '');
+            return value.replace(/\t/g, ' '.repeat(context.tabSize));
     }
 }
 
-const resolvePostProcessorSteps = (rawPost: unknown, stepCount: number) => {
-    if (rawPost === undefined) {
-        return Array.from({ length: stepCount }, () => []);
-    }
-
-    if (stepCount === 1) {
-        return [normalizePostProcessors(rawPost)];
-    }
-
-    if (!Array.isArray(rawPost) || rawPost.every(isRawPostProcessor)) {
-        let sharedProcessors = normalizePostProcessors(rawPost);
-        return Array.from({ length: stepCount }, () => sharedProcessors.slice());
-    }
-
-    if (rawPost.length !== stepCount) {
-        throw new Error(`Rule post array length ${rawPost.length} does not match find length ${stepCount}`);
-    }
-
-    return rawPost.map(normalizePostProcessors);
-}
-
-const normalizePostProcessors = (rawPost: unknown) => {
-    if (rawPost === undefined) {
-        return [];
-    }
-
-    if (Array.isArray(rawPost)) {
-        return rawPost.map(parsePostProcessor);
-    }
-
-    return [parsePostProcessor(rawPost)];
-}
-
-const isRawPostProcessor = (value: unknown): value is RawPostProcessor => {
-    if (typeof value === 'string') {
-        return true;
-    }
-
-    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-        return false;
-    }
-
-    return typeof (value as { type?: unknown }).type === 'string';
-}
-
-const parsePostProcessor = (rawProcessor: unknown): PostProcessor => {
-    if (rawProcessor === 'expandTab' || rawProcessor === 'expandTabs') {
-        return { type: 'expandTab' };
-    }
-
-    if (rawProcessor === 'trimWhitespace') {
-        return { type: 'trimWhitespace' };
-    }
-
-    if (!isRawPostProcessor(rawProcessor) || typeof rawProcessor === 'string') {
-        throw new Error(`Unsupported post processor: ${JSON.stringify(rawProcessor)}`);
-    }
-
-    if (rawProcessor.type === 'expandTab' || rawProcessor.type === 'expandTabs') {
-        if (rawProcessor.tabSize !== undefined && (!Number.isInteger(rawProcessor.tabSize) || rawProcessor.tabSize <= 0)) {
-            throw new Error(`Invalid expandTab tabSize: ${rawProcessor.tabSize}`);
-        }
-
-        return {
-            type: 'expandTab',
-            tabSize: rawProcessor.tabSize
-        };
-    }
-
-    if (rawProcessor.type === 'trimWhitespace') {
-        return { type: 'trimWhitespace' };
-    }
-
-    throw new Error(`Unsupported post processor type: ${rawProcessor.type}`);
-}
-
-type ExternalReplaceRulesConfig = {
-    rules?: any;
-    rulesets?: any;
-}
-
-const loadExternalConfig = (configPath: string, documentUri: vscode.Uri): ExternalReplaceRulesConfig => {
+const loadExternalConfig = (configPath: string, documentUri: vscode.Uri): TextReplaceRuleConfig => {
     let resolvedPath = resolveConfigPath(configPath, documentUri);
     let rawText = fs.readFileSync(resolvedPath, 'utf8');
-    let parsed = parseExternalConfig(rawText, resolvedPath);
-
-    return {
-        rules: parsed.rules,
-        rulesets: parsed.rulesets
-    };
+    return parseExternalConfig(rawText, resolvedPath);
 }
 
-const parseExternalConfig = (rawText: string, resolvedPath: string): ExternalReplaceRulesConfig => {
+const parseExternalConfig = (rawText: string, resolvedPath: string): TextReplaceRuleConfig => {
     let parseErrors: ParseError[] = [];
     let parsed = parseJsonc(rawText, parseErrors, {
         allowTrailingComma: true,
@@ -490,12 +453,302 @@ const parseExternalConfig = (rawText: string, resolvedPath: string): ExternalRep
         throw new Error(`Config root must be a JSON object in ${resolvedPath}`);
     }
 
-    let parsedConfig = parsed as ExternalReplaceRulesConfig;
+    let rawConfig = parsed as RawTextReplaceRuleConfig;
+    if (rawConfig.rulesets !== undefined) {
+        throw new Error(`Use "rulePipelines" instead of "rulesets" in ${resolvedPath}`);
+    }
+
+    let rules = parseRules(rawConfig.rules);
+    let rulePipelines = parseRulePipelines(rawConfig.rulePipelines);
+
+    validateRulePipelineReferences(rulePipelines, rules);
 
     return {
-        rules: parsedConfig.rules,
-        rulesets: parsedConfig.rulesets
+        rules,
+        rulePipelines
     };
+}
+
+const parseRules = (rawRules: unknown) => {
+    if (rawRules === undefined) {
+        return {};
+    }
+
+    if (typeof rawRules !== 'object' || rawRules === null || Array.isArray(rawRules)) {
+        throw new Error('Config field "rules" must be a JSON object');
+    }
+
+    let parsedRules: Record<string, RuleDefinition> = {};
+    for (const [ruleName, rawRule] of Object.entries(rawRules)) {
+        parsedRules[ruleName] = parseRuleDefinition(ruleName, rawRule);
+    }
+    return parsedRules;
+}
+
+const parseRulePipelines = (rawRulePipelines: unknown) => {
+    if (rawRulePipelines === undefined) {
+        return {};
+    }
+
+    if (typeof rawRulePipelines !== 'object' || rawRulePipelines === null || Array.isArray(rawRulePipelines)) {
+        throw new Error('Config field "rulePipelines" must be a JSON object');
+    }
+
+    let parsedRulePipelines: Record<string, RulePipeline> = {};
+    for (const [rulePipelineName, rawRulePipeline] of Object.entries(rawRulePipelines)) {
+        parsedRulePipelines[rulePipelineName] = parseRulePipeline(rulePipelineName, rawRulePipeline);
+    }
+    return parsedRulePipelines;
+}
+
+const parseRuleDefinition = (ruleName: string, rawRule: unknown): RuleDefinition => {
+    if (typeof rawRule !== 'object' || rawRule === null || Array.isArray(rawRule)) {
+        throw new Error(`Rule ${ruleName} must be a JSON object`);
+    }
+
+    let rule = rawRule as RawRuleDefinition;
+    rejectLegacyRuleFields(ruleName, rule);
+
+    if (rule.type !== 'regexReplace' && rule.type !== 'literalMap') {
+        throw new Error(`Rule ${ruleName} has unsupported type: ${JSON.stringify(rule.type)}`);
+    }
+
+    let language = parseLanguage(ruleName, rule.language);
+    let name = parseOptionalString(ruleName, 'name', rule.name);
+    let description = parseOptionalString(ruleName, 'description', rule.description);
+    let post = parsePostProcessors(ruleName, rule.post);
+
+    switch (rule.type) {
+        case 'regexReplace':
+            return parseRegexReplaceRule(ruleName, rule, name, description, language, post);
+        case 'literalMap':
+            return parseLiteralMapRule(ruleName, rule, name, description, language, post);
+    }
+}
+
+const rejectLegacyRuleFields = (ruleName: string, rule: RawRuleDefinition) => {
+    if (rule.literal !== undefined) {
+        throw new Error(`Rule ${ruleName} uses unsupported field "literal"`);
+    }
+    if (rule.flags !== undefined) {
+        throw new Error(`Rule ${ruleName} uses unsupported field "flags"; use "flag"`);
+    }
+    if (rule.languages !== undefined) {
+        throw new Error(`Rule ${ruleName} uses unsupported field "languages"; use "language"`);
+    }
+}
+
+const parseLanguage = (ruleName: string, rawLanguage: unknown) => {
+    if (rawLanguage === undefined) {
+        return undefined;
+    }
+
+    if (!Array.isArray(rawLanguage) || rawLanguage.some((entry) => typeof entry !== 'string')) {
+        throw new Error(`Rule ${ruleName} field "language" must be an array of language ids`);
+    }
+
+    return rawLanguage.slice();
+}
+
+const parseOptionalString = (ownerName: string, fieldName: string, value: unknown) => {
+    if (value === undefined) {
+        return undefined;
+    }
+
+    if (typeof value !== 'string') {
+        throw new Error(`${ownerName} field "${fieldName}" must be a string`);
+    }
+
+    return value;
+}
+
+const parsePostProcessors = (ruleName: string, rawPost: unknown): PostProcessor[] => {
+    if (rawPost === undefined) {
+        return [];
+    }
+
+    if (!Array.isArray(rawPost) || rawPost.length !== 1 || rawPost[0] !== 'expandTab') {
+        throw new Error(`Rule ${ruleName} field "post" only supports ["expandTab"]`);
+    }
+
+    return [{ type: 'expandTab' }];
+}
+
+const parseRegexReplaceRule = (
+    ruleName: string,
+    rule: RawRuleDefinition,
+    name: string | undefined,
+    description: string | undefined,
+    language: string[] | undefined,
+    post: PostProcessor[]
+): RegexReplaceRule => {
+    if (rule.map !== undefined) {
+        throw new Error(`Rule ${ruleName} of type "regexReplace" cannot define "map"`);
+    }
+
+    let finds = normalizeStringField(ruleName, 'find', rule.find, false);
+    let replacements = normalizeStepField(ruleName, 'replace', rule.replace, finds.length, '');
+    let flags = normalizeStepField(ruleName, 'flag', rule.flag, finds.length, undefined);
+
+    let steps = finds.map((find, index) => ({
+        kind: 'regexReplace' as const,
+        find: new RegExp(find, normalizeFlag(flags[index])),
+        replace: replacements[index] || '',
+        post
+    }));
+
+    return {
+        type: 'regexReplace',
+        name,
+        description,
+        language,
+        post,
+        steps
+    };
+}
+
+const parseLiteralMapRule = (
+    ruleName: string,
+    rule: RawRuleDefinition,
+    name: string | undefined,
+    description: string | undefined,
+    language: string[] | undefined,
+    post: PostProcessor[]
+): LiteralMapRule => {
+    if (rule.find !== undefined || rule.replace !== undefined || rule.flag !== undefined) {
+        throw new Error(`Rule ${ruleName} of type "literalMap" cannot define "find", "replace", or "flag"`);
+    }
+
+    if (typeof rule.map !== 'object' || rule.map === null || Array.isArray(rule.map)) {
+        throw new Error(`Rule ${ruleName} field "map" must be a JSON object`);
+    }
+
+    let entries = Object.entries(rule.map);
+    if (entries.length === 0) {
+        throw new Error(`Rule ${ruleName} field "map" must not be empty`);
+    }
+
+    let replacements: Record<string, string> = {};
+    let keys: string[] = [];
+    for (const [key, value] of entries) {
+        if (key.length === 0) {
+            throw new Error(`Rule ${ruleName} field "map" cannot contain an empty key`);
+        }
+        if (typeof value !== 'string') {
+            throw new Error(`Rule ${ruleName} map value for ${JSON.stringify(key)} must be a string`);
+        }
+        keys.push(key);
+        replacements[key] = value;
+    }
+
+    validateLiteralMapKeys(ruleName, keys);
+
+    let matcher = new RegExp(keys.map(escapeRegExp).join('|'), 'g');
+
+    return {
+        type: 'literalMap',
+        name,
+        description,
+        language,
+        post,
+        steps: [{
+            kind: 'literalMap',
+            find: matcher,
+            replacements,
+            post
+        }]
+    };
+}
+
+const normalizeStringField = (ruleName: string, fieldName: string, value: unknown, allowUndefined: boolean) => {
+    if (value === undefined) {
+        if (allowUndefined) {
+            return [];
+        }
+        throw new Error(`Rule ${ruleName} field "${fieldName}" is required`);
+    }
+
+    if (typeof value === 'string') {
+        return [value];
+    }
+
+    if (!Array.isArray(value) || value.length === 0 || value.some((entry) => typeof entry !== 'string')) {
+        throw new Error(`Rule ${ruleName} field "${fieldName}" must be a string or non-empty string array`);
+    }
+
+    return value.slice();
+}
+
+const normalizeStepField = <T extends string | undefined>(
+    ruleName: string,
+    fieldName: string,
+    value: unknown,
+    stepCount: number,
+    defaultValue: T
+) => {
+    if (value === undefined) {
+        return Array.from({ length: stepCount }, () => defaultValue);
+    }
+
+    if (typeof value === 'string') {
+        return Array.from({ length: stepCount }, () => value as T extends string ? string : T);
+    }
+
+    if (!Array.isArray(value) || value.length !== stepCount || value.some((entry) => typeof entry !== 'string')) {
+        throw new Error(`Rule ${ruleName} field "${fieldName}" must be a string or a string array with ${stepCount} entries`);
+    }
+
+    return value.slice() as Array<T extends string ? string : T>;
+}
+
+const normalizeFlag = (flag: string | undefined) => {
+    if (!flag) {
+        return 'gm';
+    }
+    return flag.indexOf('g') === -1 ? flag + 'g' : flag;
+}
+
+const parseRulePipeline = (rulePipelineName: string, rawRulePipeline: unknown): RulePipeline => {
+    if (typeof rawRulePipeline !== 'object' || rawRulePipeline === null || Array.isArray(rawRulePipeline)) {
+        throw new Error(`Rule pipeline ${rulePipelineName} must be a JSON object`);
+    }
+
+    let rulePipeline = rawRulePipeline as RawRulePipeline;
+    if (!Array.isArray(rulePipeline.rules) || rulePipeline.rules.some((ruleName) => typeof ruleName !== 'string')) {
+        throw new Error(`Rule pipeline ${rulePipelineName} field "rules" must be an array of rule names`);
+    }
+
+    return {
+        name: parseOptionalString(rulePipelineName, 'name', rulePipeline.name),
+        description: parseOptionalString(rulePipelineName, 'description', rulePipeline.description),
+        rules: rulePipeline.rules.slice()
+    };
+}
+
+const validateRulePipelineReferences = (
+    rulePipelines: Record<string, RulePipeline>,
+    rules: Record<string, RuleDefinition>
+) => {
+    for (const [rulePipelineName, rulePipeline] of Object.entries(rulePipelines)) {
+        for (const ruleName of rulePipeline.rules) {
+            if (!Object.prototype.hasOwnProperty.call(rules, ruleName)) {
+                throw new Error(`Rule pipeline ${rulePipelineName} references missing rule ${JSON.stringify(ruleName)}`);
+            }
+        }
+    }
+}
+
+const validateLiteralMapKeys = (ruleName: string, keys: string[]) => {
+    let sortedKeys = keys.slice().sort((left, right) => left.length - right.length || left.localeCompare(right));
+    for (let i = 0; i < sortedKeys.length; i++) {
+        for (let j = i + 1; j < sortedKeys.length; j++) {
+            if (sortedKeys[j].startsWith(sortedKeys[i])) {
+                throw new Error(
+                    `Rule ${ruleName} has ambiguous literal map keys ${JSON.stringify(sortedKeys[i])} and ${JSON.stringify(sortedKeys[j])}`
+                );
+            }
+        }
+    }
 }
 
 const resolveConfigPath = (configPath: string, documentUri: vscode.Uri) => {
@@ -515,7 +768,6 @@ const resolveConfigPath = (configPath: string, documentUri: vscode.Uri) => {
     return path.resolve(expandedPath);
 }
 
-// From https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions#Escaping
 function escapeRegExp(string: string) {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

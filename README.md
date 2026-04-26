@@ -1,93 +1,194 @@
-# Replace Rules
+# TextReplaceRule
 
-**This is a personal fork of [bhughes339/vscode-replacerules](https://github.com/bhughes339/vscode-replacerules).**
+**This is based on [bhughes339/vscode-replacerules](https://github.com/bhughes339/vscode-replacerules).**
 
-Create search/replace rules using JavaScript RegEx. A "rule" is one or more search/replace patterns that can be applied to the entire document, or one or more selections of text.
+TextReplaceRule runs named text-transformation rules from an external JSON or JSONC file. Rules can use either regular expressions or literal lookup maps, and rule pipelines can chain multiple rules in order.
 
 ## Getting started
 
-1. Set `replacerules.configPath` in `settings.json`.
+1. Set `textReplaceRule.configPath` in `settings.json`.
+2. Open the Command Palette and select **TextReplaceRule: Run Rule...** or **TextReplaceRule: Run Rule Pipeline...**.
 
-2. Open the Command Palette and select **Replace Rules: Run Rule ...**
+## Configuration file
 
-## Configuration options
-
-### Configuration file format
-
-The JSON or JSONC file pointed to by `replacerules.configPath` contains `rules` and `rulesets`.
-
-#### Rules
-
-`rules` is a dictionary of objects, each of which represents a single find/replace rule. A rule consists of the following components:
-
-- Object key - (Required) The description of the rule that will appear in the command palette.
-- `find` - (Required) A sequence of regular expressions to be searched on. Can be a single string or an array of strings.
-    - Note: Regular expressions need to be properly escaped for use in VSCode settings strings. If you're unsure how to do this, **Replace Rules: Stringify regular expression** from the Command Palette will do it for you.
-- `replace` - (Optional) A sequence of strings used as replacements. Can be a single string or an array of strings. If this is an empty string or unspecified, each instance of `find` will be deleted.
-- `flags` - (Optional) A set of RegEx flags to apply to the rule. If only one set of flags is specified, it will be applied to all `finds` in the rule. The default flags are "gm" (global, multi-line). A list of compatible flags can be found [here](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions#Advanced_searching_with_flags).
-- `languages` - (Optional) An array of workspace language ids that the rule is restricted to. For example, a rule with `languages` set to 'typescript' will only appear in the **Run Rule...** menu if TypeScript is the selected language for the active document.
-- `literal` - (Optional) Perform a non-RegEx, literal search and replace.
-- `post` - (Optional) A lightweight post-processing pipeline applied to each individual replacement result after `replace` is expanded. Supported processors:
-    - `expandTab` - Replace `\t` in the replacement result with spaces. Defaults to the active editor `tabSize`.
-    - `trimWhitespace` - Remove trailing spaces and tabs from each replaced line.
-    - Object form is also supported, for example `{ "type": "expandTabs", "tabSize": 4 }`.
-    - For multi-step rules, a flat `post` array is shared across all `find`/`replace` steps. Use nested arrays for per-step post-processing.
-
-#### Rulesets
-
-`rulesets` is a dictionary of objects that run a sequence of rules defined in `rules`. The rules are run in the order they are listed in the `rules` option:
-
-- Object key - (Required) The description of the ruleset that will appear in the command palette.
-- `rules` - (Required) An array of rules to be run when the ruleset is called.
-
-### External configuration file
-
-`replacerules.configPath` points to a JSON or JSONC file that contains `rules` and `rulesets`.
-
-- Absolute, relative, and space-containing paths are supported.
-- Relative paths are resolved from the current workspace folder when one exists.
-- `~/` expands to the current home directory.
-- JSONC comments and trailing commas are supported.
-- If `configPath` is unset or the file cannot be loaded, no Replace Rules configuration is available.
-
-## Example configuration
-
-```json
-"replacerules.configPath": "xxxx.json"
-```
-
-External file contents:
+`textReplaceRule.configPath` points to a JSON or JSONC file with this top-level shape:
 
 ```json
 {
-    "rules": {
-        "Remove trailing and leading whitespace": {
-            "find": "^\\s*(.*)\\s*$",
-            "replace": "$1"
-        },
-        "Latex parenthesis to LR": {
-            "find": "^(\\s*)\\(\\s*([\\s\\S]*?)\\s*\\)(\\s*)$",
-            "flags": "g",
-            "replace": "$1\\LR{\\n$1\\t$2\\n$1}$3",
-            "post": ["expandTab"]
-        }
-    },
-    "rulesets": {
-        "Remove lots of stuff": {
-            "rules": [
-                "Remove trailing and leading whitespace"
-            ]
-        }
-    }
+  "rules": {},
+  "rulePipelines": {}
 }
 ```
 
-## Other features
+- Absolute paths, workspace-relative paths, paths with spaces, and `~/` are supported.
+- JSONC comments and trailing commas are supported.
+- If `configPath` is unset or cannot be loaded, no TextReplaceRule configuration is available.
 
-### Stringify regular expression
+## Rule identity and display
 
-Formats a valid regular expression in JSON string format for use in rule objects.
+Each entry in `rules` and `rulePipelines` is keyed by a stable object key. That key is used for references inside configuration.
 
-- Command palette: **Replace Rules: Stringify regular expression**
-- Accepts either a bare pattern such as `(.*)` or a literal-style input such as `/foo/i`
-- When literal-style input includes flags, the escaped pattern is still copied by itself, and the flags are shown in the message so they can be placed in the rule's `flags` field
+- `name` is optional and controls the label shown in the Quick Pick UI.
+    - If `name` is omitted, the object key is shown.
+    - If `name` differs from the object key, the Quick Pick detail line shows the underlying key.
+- `description` is optional and is shown as secondary text in the Quick Pick UI.
+
+## Rule types
+
+Every rule must declare `type`. Only two rule types are supported.
+
+### `regexReplace`
+
+Use `regexReplace` for one or more ordered regex replacement steps.
+
+```json
+{
+  "type": "regexReplace",
+  "name": "Wrap Block",
+  "description": "Turn a single-line block into an indented multi-line block",
+  "find": "^(\\s*)\\[(.*)\\](\\s*)$",
+  "replace": "$1begin {\\n$1\\t$2\\n$1} end$3",
+  "flag": "g",
+  "post": ["expandTab"]
+}
+```
+
+Supported fields:
+
+- `type`: required, must be `regexReplace`
+- `name`: optional display label
+- `description`: optional display description
+- `find`: required string or non-empty string array
+- `replace`: optional string or string array aligned with `find`
+- `flag`: optional string or string array aligned with `find`
+- `language`: optional array of VS Code language ids
+- `post`: optional, only `["expandTab"]` is supported now
+
+Behavior:
+
+- If `find` is an array, steps run sequentially.
+- If `replace` is omitted, matches are deleted.
+- If `flag` is omitted, the default is `gm`.
+- Global matching is always enabled even if `g` is omitted.
+- Replacement strings keep normal JavaScript replacement semantics such as `$1`, `$&`, and `$$`.
+
+### `literalMap`
+
+Use `literalMap` for bulk literal lookup-and-replace.
+
+```json
+{
+  "type": "literalMap",
+  "name": "Status Keywords",
+  "language": ["markdown"],
+  "map": {
+    ":ok:": "[done]",
+    ":warn:": "[needs-review]"
+  }
+}
+```
+
+Supported fields:
+
+- `type`: required, must be `literalMap`
+- `name`: optional display label
+- `description`: optional display description
+- `map`: required object from literal source string to literal replacement string
+- `language`: optional array of VS Code language ids
+- `post`: optional, only `["expandTab"]` is valid
+
+Behavior:
+
+- `map` keys must be non-empty.
+- `map` keys may not overlap by prefix. For example, `a` and `ab` in the same rule are rejected.
+- `map` values are inserted literally. Tokens such as `$1` or `$&` are not expanded.
+
+## Rule pipelines
+
+`rulePipelines` runs named rules in order.
+
+```json
+{
+  "name": "Cleanup Pipeline",
+  "description": "Whitespace cleanup followed by block normalization",
+  "rules": [
+    "trim-whitespace",
+    "wrap-block"
+  ]
+}
+```
+
+Supported fields:
+
+- `name`: optional display label
+- `description`: optional display description
+- `rules`: required array of rule object keys
+
+Behavior:
+
+- Pipelines are sequential.
+- Later rules see the output of earlier rules.
+- Missing rule references are rejected during config load.
+
+## `post`
+
+`post` is a per-replacement post-processing stage. Only one value is supported:
+
+```json
+{
+  "post": ["expandTab"]
+}
+```
+
+`expandTab` replaces `\t` in each replacement result with spaces using the active editor `tabSize`.
+
+## Selection behavior
+
+- If there is exactly one empty selection, the entire document is processed.
+- Otherwise, each non-empty selection is processed independently.
+- All rule steps run in memory first, and the extension commits the final changes through one editor edit operation.
+- CRLF line endings are preserved.
+
+## Complete example
+
+```json
+{
+  "rules": {
+    "trim-whitespace": {
+      "type": "regexReplace",
+      "name": "Trim Whitespace",
+      "find": "^\\s*(.*)\\s*$",
+      "replace": "$1"
+    },
+    "wrap-block": {
+      "type": "regexReplace",
+      "name": "Wrap Block",
+      "description": "Turn a single-line block into an indented multi-line block",
+      "find": "^(\\s*)\\[(.*)\\](\\s*)$",
+      "replace": "$1begin {\\n$1\\t$2\\n$1} end$3",
+      "flag": "g",
+      "post": ["expandTab"]
+    },
+    "status-keywords": {
+      "type": "literalMap",
+      "name": "Status Keywords",
+      "description": "Normalize short status markers",
+      "language": ["markdown"],
+      "map": {
+        ":ok:": "[done]",
+        ":warn:": "[needs-review]"
+      }
+    }
+  },
+  "rulePipelines": {
+    "cleanup": {
+      "name": "Cleanup Pipeline",
+      "description": "Whitespace cleanup followed by block normalization",
+      "rules": [
+        "trim-whitespace",
+        "wrap-block"
+      ]
+    }
+  }
+}
+```

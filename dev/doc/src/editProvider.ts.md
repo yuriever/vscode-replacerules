@@ -6,33 +6,35 @@ This file contains the core replace engine used by all extension commands.
 
 ## Main class
 
-ReplaceRulesEditProvider
+TextReplaceRuleEditProvider
 
 ### Constructor
 
 - Accepts the active TextEditor.
-- Reads configuration from `replacerules.configPath`.
-- If `configPath` is set, loads external JSON or JSONC from disk (via `jsonc-parser`) and uses `rules` / `rulesets` from that file.
+- Reads configuration from `textReplaceRule.configPath`.
+- If `configPath` is set, loads external JSON or JSONC from disk (via `jsonc-parser`) and uses `rules` / `rulePipelines` from that file.
 - If `configPath` is unset or the file fails to load, the provider works with empty config.
 
 ### User-facing entry methods
 
 - pickRuleAndRun()
-- pickRulesetAndRun()
+- pickRulePipelineAndRun()
 - runSingleRule(ruleName)
-- runRuleset(rulesetName)
+- runRulePipeline(rulePipelineName)
 
 ## Selection and menu helpers
 
-- getQPRules(): Builds quick pick items for rules, with optional language filtering.
-- getQPRulesets(): Builds quick pick items for rulesets.
+- getQPRules(): Builds quick pick items for rules, with optional language filtering and optional `name` / `description` display metadata.
+- getQPRulePipelines(): Builds quick pick items for rule pipelines, with optional `name` / `description` display metadata.
 
 ## Replace execution model
 
 There is one execution path:
 
 - doReplace(rule): Runs replacements on the active document or selections.
+- doReplace(steps): Runs replacements on the active document or selections.
 - The replace path preserves CRLF line endings when writing back to the document.
+- The replace path computes all changes in memory first and applies them through one `TextEditor.edit(...)` call.
 
 ### Full-document behavior
 
@@ -40,31 +42,33 @@ If there is exactly one selection and it is empty, the entire document is target
 
 ### Multi-step behavior
 
-A rule can contain multiple find and replace steps. Steps are executed in order.
-Rulesets append steps from multiple rules into one sequence and then execute.
-If a ruleset resolves to zero applicable rules, no edit is attempted.
+A `regexReplace` rule can contain multiple find/replace steps. Steps are executed in order.
+`rulePipelines` append steps from multiple rules into one sequence and then execute.
+If a rule pipeline resolves to zero applicable rules, no edit is attempted.
 
 ## Internal rule model
 
-- Replacement class
-    - Builds a RegExp from find, flags, and literal mode.
-    - Ensures global matching by adding g when missing.
-    - Stores an optional per-match post-processing pipeline for replacement output.
-- ReplaceRule class
-    - Normalizes scalar and array config values into ordered Replacement steps.
-    - Supports appendRule for ruleset composition.
+- RuleDefinition union
+    - Supports `regexReplace` and `literalMap`.
+    - Carries optional `name` and `description` metadata for Quick Pick display.
+- RegexReplaceStep
+    - Builds a RegExp from `find` and `flag`.
+    - Ensures global matching by adding `g` when missing.
+- LiteralMapStep
+    - Compiles one literal matcher and replacement table.
 
 ## Utility functions
 
-- objToArray(obj): Normalizes config field values.
-- rangeUpdate(editor, document, index): Computes effective replace range.
+- getReplaceTargets(editor, document): Computes immutable replace ranges before edits.
 - normalizeLineEndings(str): Normalizes CRLF to LF for matching only.
 - getPostProcessContext(editor): Reads effective editor tab settings for post processors.
+- applySteps(text, steps, context): Applies ordered in-memory replacement steps.
 - loadExternalConfig(path, documentUri): Reads and parses external JSON/JSONC config.
-- parseExternalConfig(rawText, resolvedPath): Parses JSONC text and reports parser errors with file context.
+- parseExternalConfig(rawText, resolvedPath): Parses JSONC text, validates typed rules, and reports file-scoped config errors.
 - resolveConfigPath(path, documentUri): Expands `~/` and resolves workspace-relative paths.
-- applyReplacement(text, replacement, context): Applies normalized matching, expands standard replacement string tokens, runs post processors on each replacement result, and preserves CRLF line endings in output.
-- escapeRegExp(str): Escapes literal patterns.
+- applyRegexReplaceStep(...): Expands standard replacement string tokens and runs `expandTab`.
+- applyLiteralMapStep(...): Performs literal lookup replacement and runs `expandTab`.
+- escapeRegExp(str): Escapes literal patterns and literal-map entries.
 
 ## Maintenance notes
 
