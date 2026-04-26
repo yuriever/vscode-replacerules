@@ -86,11 +86,13 @@ type RawTextReplaceRuleConfig = {
 };
 
 type PostProcessor = {
-    type: 'expandTab' | 'removeBlankLine';
+    type: 'alignLine' | 'expandTab' | 'indentLine' | 'removeBlankLine';
 };
 
 type PostProcessContext = {
     tabSize: number;
+    indentPrefix: string;
+    alignPrefix: string;
 };
 
 type ReplacementCallbackArg = string | undefined | number | NamedGroupMap;
@@ -209,12 +211,12 @@ export default class TextReplaceRuleEditProvider {
     private async doReplace(steps: ExecutionStep[]) {
         let editor = this.textEditor;
         let document = editor.document;
-        let context = getPostProcessContext(editor);
         let targets = getReplaceTargets(editor, document);
         let edits: PendingEdit[] = [];
 
         for (const target of targets) {
             let originalText = document.getText(target.range);
+            let context = getPostProcessContext(editor, target.range);
             let updatedText = applySteps(originalText, steps, context);
             if (updatedText !== originalText) {
                 edits.push({
@@ -326,10 +328,14 @@ const restoreLineEndings = (originalText: string, updatedText: string) => {
         : updatedText;
 }
 
-const getPostProcessContext = (editor: TextEditor): PostProcessContext => {
+const getPostProcessContext = (editor: TextEditor, targetRange: Range): PostProcessContext => {
     let tabSizeOption = editor.options.tabSize;
+    let lineText = editor.document.lineAt(targetRange.start.line).text;
+    let rawPrefix = lineText.slice(0, targetRange.start.character);
     return {
-        tabSize: typeof tabSizeOption === 'number' && tabSizeOption > 0 ? tabSizeOption : 4
+        tabSize: typeof tabSizeOption === 'number' && tabSizeOption > 0 ? tabSizeOption : 4,
+        indentPrefix: /^\s*$/.test(rawPrefix) ? rawPrefix : '',
+        alignPrefix: Array.from(rawPrefix, (ch) => /\s/.test(ch) ? ch : ' ').join('')
     };
 }
 
@@ -428,11 +434,24 @@ const applyPostProcessors = (value: string, processors: PostProcessor[], context
 
 const applyPostProcessor = (value: string, processor: PostProcessor, context: PostProcessContext) => {
     switch (processor.type) {
+        case 'alignLine':
+            return prefixSubsequentLines(value, context.alignPrefix);
         case 'expandTab':
             return value.replace(/\t/g, ' '.repeat(context.tabSize));
+        case 'indentLine':
+            return prefixSubsequentLines(value, context.indentPrefix);
         case 'removeBlankLine':
             return value.split('\n').filter((line) => !/^\s*$/.test(line)).join('\n');
     }
+}
+
+const prefixSubsequentLines = (value: string, prefix: string) => {
+    let lines = value.split('\n');
+    if (lines.length <= 1 || prefix.length === 0) {
+        return value;
+    }
+
+    return lines[0] + '\n' + lines.slice(1).map((line) => prefix + line).join('\n');
 }
 
 const loadExternalConfig = (configPath: string, documentUri: vscode.Uri): TextReplaceRuleConfig => {
@@ -591,8 +610,8 @@ const parsePostProcessors = (ruleName: string, rawPost: unknown): PostProcessor[
     }
 
     return rawPost.map((processor) => {
-        if (processor !== 'expandTab' && processor !== 'removeBlankLine') {
-            throw new Error(`Rule ${ruleName} field "post" only supports "expandTab" and "removeBlankLine"`);
+        if (processor !== 'alignLine' && processor !== 'expandTab' && processor !== 'indentLine' && processor !== 'removeBlankLine') {
+            throw new Error(`Rule ${ruleName} field "post" only supports "alignLine", "expandTab", "indentLine", and "removeBlankLine"`);
         }
 
         return { type: processor };

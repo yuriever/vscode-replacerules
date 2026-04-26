@@ -181,6 +181,66 @@ suite('Extension Test Suite', () => {
 		assert.strictEqual(editor.document.getText(), '  [\n    x\n  ]');
 	});
 
+	test('runRule applies indentLine before expandTab for whitespace-indented selections', async () => {
+		await setTextReplaceRuleConfig(await writeConfigFile({
+			rules: {
+				'Wrap selection as equation': {
+					type: 'regexReplace',
+					find: '^(.*)$',
+					replace: '\\begin{equation}\n\t$1\n\\end{equation}',
+					post: ['indentLine', 'expandTab']
+				}
+			}
+		}));
+
+		const editor = await openEditor('    a=b');
+		editor.options = { tabSize: 4, insertSpaces: true };
+		editor.selection = new vscode.Selection(new vscode.Position(0, 4), new vscode.Position(0, 7));
+
+		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Wrap selection as equation' });
+		assert.strictEqual(editor.document.getText(), '    \\begin{equation}\n        a=b\n    \\end{equation}');
+	});
+
+	test('runRule skips indentLine when selection prefix contains non-whitespace', async () => {
+		await setTextReplaceRuleConfig(await writeConfigFile({
+			rules: {
+				'Wrap selection as equation': {
+					type: 'regexReplace',
+					find: '^(.*)$',
+					replace: '\\begin{equation}\n\t$1\n\\end{equation}',
+					post: ['indentLine', 'expandTab']
+				}
+			}
+		}));
+
+		const editor = await openEditor('xxxx (a+b) xxxx');
+		editor.options = { tabSize: 4, insertSpaces: true };
+		editor.selection = new vscode.Selection(new vscode.Position(0, 5), new vscode.Position(0, 10));
+
+		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Wrap selection as equation' });
+		assert.strictEqual(editor.document.getText(), 'xxxx \\begin{equation}\n    (a+b)\n\\end{equation} xxxx');
+	});
+
+	test('runRule applies alignLine before expandTab for inline selections', async () => {
+		await setTextReplaceRuleConfig(await writeConfigFile({
+			rules: {
+				'Inline LR block': {
+					type: 'regexReplace',
+					find: '^\\((.*)\\)$',
+					replace: '\\LR{\n\t$1\n}',
+					post: ['alignLine', 'expandTab']
+				}
+			}
+		}));
+
+		const editor = await openEditor('    xxxx (a+b) xxxx');
+		editor.options = { tabSize: 4, insertSpaces: true };
+		editor.selection = new vscode.Selection(new vscode.Position(0, 9), new vscode.Position(0, 14));
+
+		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Inline LR block' });
+		assert.strictEqual(editor.document.getText(), '    xxxx \\LR{\n             a+b\n         } xxxx');
+	});
+
 	test('runRule applies expandTab post-processing to literalMap results without token expansion', async () => {
 		await setTextReplaceRuleConfig(await writeConfigFile({
 			rules: {
@@ -239,6 +299,26 @@ suite('Extension Test Suite', () => {
 
 		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Clean indented block' });
 		assert.strictEqual(editor.document.getText(), '[\n  item\n]');
+	});
+
+	test('runRule applies alignLine, expandTab, and removeBlankLine in listed order', async () => {
+		await setTextReplaceRuleConfig(await writeConfigFile({
+			rules: {
+				'Inline block cleanup': {
+					type: 'regexReplace',
+					find: '^x$',
+					replace: '{\n\n\titem\n}',
+					post: ['alignLine', 'expandTab', 'removeBlankLine']
+				}
+			}
+		}));
+
+		const editor = await openEditor('foo x bar');
+		editor.options = { tabSize: 2, insertSpaces: true };
+		editor.selection = new vscode.Selection(new vscode.Position(0, 4), new vscode.Position(0, 5));
+
+		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Inline block cleanup' });
+		assert.strictEqual(editor.document.getText(), 'foo {\n      item\n    } bar');
 	});
 
 	test('runRule skips language-restricted rules for other languages', async () => {

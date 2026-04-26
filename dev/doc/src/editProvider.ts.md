@@ -32,7 +32,14 @@ Core engine for the extension.
     - `find`, `replace`, `flag`, optional `language`, optional `post`
 - `literalMap`
     - `map`, optional `language`, optional `post`
-- `post` supports `"expandTab"` and `"removeBlankLine"` processors, in listed order
+- `post` supports `"alignLine"`, `"expandTab"`, `"indentLine"`, and `"removeBlankLine"` processors, in listed order
+
+## Post-process context
+
+- `tabSize` comes from the active editor options
+- `indentPrefix` is the exact selection-start prefix only when it is whitespace-only
+- `alignPrefix` preserves whitespace and replaces non-whitespace characters before the selection with spaces
+- Context is computed per replace target, so separate selections can align differently in one command run
 
 ## Notes
 

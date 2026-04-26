@@ -106,8 +106,15 @@ Behavior:
 
 Available processors:
 
+- `indentLine`/`alignLine`: derive prefix from the original document line at the selection start:
+    - `indentLine` uses the exact text from line start to selection start only when that text is all whitespace. Otherwise it adds nothing.
+    - `alignLine` keeps whitespace characters as-is and replaces every non-whitespace character before the selection with a plain space, so later lines align to the selection column even for inline replacements.
+
 - `expandTab`: replace tabs with spaces using the active editor `tabSize`
+
 - `removeBlankLine`: remove blank lines, including whitespace-only lines
+
+Recommended order for multiline formatting is `["indentLine"/"alignLine", "expandTab", "removeBlankLine"]`.
 
 ## Example
 
@@ -137,6 +144,20 @@ Available processors:
       "replace": "$1begin {\\n$1\\t$2\\n$1} end$3",
       "flag": "g",
       "post": ["expandTab"]
+    },
+    "latex-inline-lr": {
+      "type": "regexReplace",
+      "name": "LaTeX Inline LR",
+      "find": "^\\((.*)\\)$",
+      "replace": "\\LR{\\n\\t$1\\n}",
+      "post": ["alignLine", "expandTab"]
+    },
+    "latex-wrap-equation": {
+      "type": "regexReplace",
+      "name": "LaTeX Wrap Equation",
+      "find": "^(.*)$",
+      "replace": "\\begin{equation}\\n\\t$1\\n\\end{equation}",
+      "post": ["indentLine", "expandTab"]
     }
   },
   "rulePipelines": {

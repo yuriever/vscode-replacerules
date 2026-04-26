@@ -2,7 +2,13 @@
 
 TextReplaceRule started as a fork of `bhughes339/vscode-replacerules`, but `1.0.0` marks the start of an independent product line. Entries from `1.0.0` onward describe TextReplaceRule itself. Older `0.x` entries are kept below as legacy fork history and do not define the new configuration model or naming scheme.
 
-## Unreleased
+## 1.0.4
+
+- Add `post: ["indentLine"]` for multiline replacements that should inherit indentation from a whitespace-only selection prefix.
+- Add `post: ["alignLine"]` for multiline replacements that should align later lines to the selection start column.
+- Document the recommended multiline post-processor order: `indentLine`/`alignLine`, then `expandTab`, then `removeBlankLine`.
+
+## 1.0.3
 
 - Change the default `flag` behavior for `regexReplace` rules from `gm` to `g`.
 - Add coverage for the new default flag behavior.
