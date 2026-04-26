@@ -4,6 +4,9 @@ TextReplaceRule started as a fork of `bhughes339/vscode-replacerules`, but `1.0.
 
 ## Unreleased
 
+- Change the default `flag` behavior for `regexReplace` rules from `gm` to `g`.
+- Add coverage for the new default flag behavior.
+
 ## 1.0.2
 
 - Cache successfully loaded external config files for the extension session.

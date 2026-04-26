@@ -142,6 +142,24 @@ suite('Extension Test Suite', () => {
 		assert.strictEqual(editor.document.getText(), 'a\r\nb\r\n');
 	});
 
+	test('runRule defaults missing flag to global-only matching', async () => {
+		await setTextReplaceRuleConfig(await writeConfigFile({
+			rules: {
+				'Anchor first line only': {
+					type: 'regexReplace',
+					find: '^b$',
+					replace: 'B'
+				}
+			}
+		}));
+
+		const editor = await openEditor('b\nb');
+		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
+
+		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Anchor first line only' });
+		assert.strictEqual(editor.document.getText(), 'b\nb');
+	});
+
 	test('runRule applies expandTab post-processing to regexReplace results', async () => {
 		await setTextReplaceRuleConfig(await writeConfigFile({
 			rules: {

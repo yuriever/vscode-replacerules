@@ -728,7 +728,7 @@ const normalizeStepField = <T extends string | undefined>(
 
 const normalizeFlag = (flag: string | undefined) => {
     if (!flag) {
-        return 'gm';
+        return 'g';
     }
     return flag.indexOf('g') === -1 ? flag + 'g' : flag;
 }

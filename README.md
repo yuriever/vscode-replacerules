@@ -67,8 +67,7 @@ Behavior:
 
 - Array `find` values run as ordered steps.
 - Missing `replace` deletes matches.
-- Missing `flag` defaults to `gm`.
-- Global matching is always enabled.
+- Missing `flag` defaults to `g`; multiline anchors such as `^` and `$` require explicit `m`.
 - Replacement strings use normal JavaScript replacement tokens such as `$1`, `$&`, and `$$`.
 
 ### `literalMap`
