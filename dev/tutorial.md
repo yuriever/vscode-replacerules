@@ -27,8 +27,8 @@ For interactive debugging:
 
 ```json
 {
-  "rules": {},
-  "rulePipelines": {}
+    "rules": {},
+    "rulePipelines": {}
 }
 ```
 

@@ -54,6 +54,10 @@ type TextReplaceRuleConfig = {
     rulePipelines: Record<string, RulePipeline>;
 };
 
+type CachedExternalConfig = {
+    config: TextReplaceRuleConfig;
+};
+
 type RawRuleDefinition = {
     type?: unknown;
     name?: unknown;
@@ -433,8 +437,21 @@ const applyPostProcessor = (value: string, processor: PostProcessor, context: Po
 
 const loadExternalConfig = (configPath: string, documentUri: vscode.Uri): TextReplaceRuleConfig => {
     let resolvedPath = resolveConfigPath(configPath, documentUri);
+    let cached = externalConfigCache.get(resolvedPath);
+    if (cached) {
+        return cached.config;
+    }
+
     let rawText = fs.readFileSync(resolvedPath, 'utf8');
-    return parseExternalConfig(rawText, resolvedPath);
+    let config = parseExternalConfig(rawText, resolvedPath);
+    externalConfigCache.set(resolvedPath, { config });
+    return config;
+}
+
+const externalConfigCache = new Map<string, CachedExternalConfig>();
+
+export const clearExternalConfigCache = () => {
+    externalConfigCache.clear();
 }
 
 const parseExternalConfig = (rawText: string, resolvedPath: string): TextReplaceRuleConfig => {

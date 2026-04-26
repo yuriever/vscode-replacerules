@@ -4,6 +4,15 @@ TextReplaceRule started as a fork of `bhughes339/vscode-replacerules`, but `1.0.
 
 ## Unreleased
 
+## 1.0.2
+
+- Cache successfully loaded external config files for the extension session.
+    - High-frequency command invocations reuse the parsed config instead of rereading and reparsing the config file.
+    - Changing `text-replace-rule.configPath` clears the cache automatically.
+    - Editing the external config file itself now requires reloading the VS Code window.
+
+## 1.0.1
+
 - Add `post: ["removeBlankLine"]` to remove blank lines from replacement results, including whitespace-only lines.
 - Allow multiple supported `post` processors to run in listed order.
 

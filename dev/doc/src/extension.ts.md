@@ -6,6 +6,7 @@ Extension entrypoint.
 
 - register `text-replace-rule.runRule`
 - register `text-replace-rule.runRulePipeline`
+- clear the external config cache when `text-replace-rule.configPath` changes
 - read the active editor
 - forward work to `TextReplaceRuleEditProvider`
 

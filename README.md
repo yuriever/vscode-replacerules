@@ -1,194 +1,150 @@
 # TextReplaceRule
 
-**Originally forked from [bhughes339/vscode-replacerules](https://github.com/bhughes339/vscode-replacerules). TextReplaceRule is now an independent extension.**
+TextReplaceRule runs text replacement rules in VS Code from an external JSON file.
 
-TextReplaceRule runs named text-transformation rules from an external JSON or JSONC file. Rules can use either regular expressions or literal lookup maps, and rule pipelines can chain multiple rules in order.
+Supported rule types:
 
-## Getting started
+- `regexReplace`
+- `literalMap`
+- `rulePipelines` (ordered rule chains)
 
-1. Set `text-replace-rule.configPath` in `settings.json`.
-2. Open the Command Palette and select **TextReplaceRule: Run Rule...** or **TextReplaceRule: Run Rule Pipeline...**.
+## Setup
 
-## Configuration file
+1. Create config file and set `text-replace-rule.configPath` in `settings.json`.
 
-`text-replace-rule.configPath` points to a JSON or JSONC file with this top-level shape:
+2. Run command from the Command Palette:
+    - **TextReplaceRule: Run Rule...**
+    - **TextReplaceRule: Run Rule Pipeline...**
 
-```json
-{
-  "rules": {},
-  "rulePipelines": {}
-}
-```
+## Config File
 
-- Absolute paths, workspace-relative paths, paths with spaces, and `~/` are supported.
+- Root shape:
+
+    ```jsonc
+    {
+        "rules": {},
+        "rulePipelines": {}
+    }
+    ```
+
+- `configPath` supports absolute paths, workspace-relative paths, paths with spaces, and `~/`.
 - JSONC comments and trailing commas are supported.
-- If `configPath` is unset or cannot be loaded, no TextReplaceRule configuration is available.
+- Changing `text-replace-rule.configPath` is picked up automatically.
+- Editing the external config file itself requires **Developer: Reload Window**.
+- If `configPath` is unset or invalid, no rules are available.
 
-## Rule identity and display
+## Selection Scope
 
-Each entry in `rules` and `rulePipelines` is keyed by a stable object key. That key is used for references inside configuration.
+- One empty selection processes the whole document.
+- Non-empty selections are processed independently.
+- One command run is applied as one VS Code edit operation.
+- CRLF line endings are preserved.
 
-- `name` is optional and controls the label shown in the Quick Pick UI.
-    - If `name` is omitted, the object key is shown.
-    - If `name` differs from the object key, the Quick Pick detail line shows the underlying key.
-- `description` is optional and is shown as secondary text in the Quick Pick UI.
+## Rules
 
-## Rule types
+Optional fields supported by both rules and pipelines:
 
-Every rule must declare `type`. Only two rule types are supported.
+- `name`: Quick Pick label
+- `description`: Quick Pick secondary text
+
+If `name` is omitted, the object key is shown.
 
 ### `regexReplace`
 
-Use `regexReplace` for one or more ordered regex replacement steps.
+Required:
 
-```json
-{
-  "type": "regexReplace",
-  "name": "Wrap Block",
-  "description": "Turn a single-line block into an indented multi-line block",
-  "find": "^(\\s*)\\[(.*)\\](\\s*)$",
-  "replace": "$1begin {\\n$1\\t$2\\n$1} end$3",
-  "flag": "g",
-  "post": ["expandTab"]
-}
-```
+- `type: "regexReplace"`
+- `find`: string or non-empty string array
 
-Supported fields:
+Optional:
 
-- `type`: required, must be `regexReplace`
-- `name`: optional display label
-- `description`: optional display description
-- `find`: required string or non-empty string array
-- `replace`: optional string or string array aligned with `find`
-- `flag`: optional string or string array aligned with `find`
-- `language`: optional array of VS Code language ids
-- `post`: optional array of post processors
+- `replace`: string or string array aligned with `find`
+- `flag`: string or string array aligned with `find`
+- `language`: array of VS Code language ids
+- `post`: array of post processors
 
 Behavior:
 
-- If `find` is an array, steps run sequentially.
-- If `replace` is omitted, matches are deleted.
-- If `flag` is omitted, the default is `gm`.
-- Global matching is always enabled even if `g` is omitted.
-- Replacement strings keep normal JavaScript replacement semantics such as `$1`, `$&`, and `$$`.
+- Array `find` values run as ordered steps.
+- Missing `replace` deletes matches.
+- Missing `flag` defaults to `gm`.
+- Global matching is always enabled.
+- Replacement strings use normal JavaScript replacement tokens such as `$1`, `$&`, and `$$`.
 
 ### `literalMap`
 
-Use `literalMap` for bulk literal lookup-and-replace.
+Required:
 
-```json
-{
-  "type": "literalMap",
-  "name": "Status Keywords",
-  "language": ["markdown"],
-  "map": {
-    ":ok:": "[done]",
-    ":warn:": "[needs-review]"
-  }
-}
-```
+- `type: "literalMap"`
+- `map`: object from literal source text to literal replacement text
 
-Supported fields:
+Optional:
 
-- `type`: required, must be `literalMap`
-- `name`: optional display label
-- `description`: optional display description
-- `map`: required object from literal source string to literal replacement string
-- `language`: optional array of VS Code language ids
-- `post`: optional array of post processors
+- `language`: array of VS Code language ids
+- `post`: array of post processors
 
 Behavior:
 
-- `map` keys must be non-empty.
-- `map` keys may not overlap by prefix. For example, `a` and `ab` in the same rule are rejected.
-- `map` values are inserted literally. Tokens such as `$1` or `$&` are not expanded.
+- Map keys must be non-empty.
+- Keys may not overlap by prefix. For example, `a` and `ab` in the same map are rejected.
+- Values are inserted literally. `$1` and `$&` are not expanded.
 
-## Rule pipelines
+## Rule Pipelines
 
-`rulePipelines` runs named rules in order.
+Required:
 
-```json
-{
-  "name": "Cleanup Pipeline",
-  "description": "Whitespace cleanup followed by block normalization",
-  "rules": [
-    "trim-whitespace",
-    "wrap-block"
-  ]
-}
-```
-
-Supported fields:
-
-- `name`: optional display label
-- `description`: optional display description
-- `rules`: required array of rule object keys
+- `rules`: array of rule keys
 
 Behavior:
 
-- Pipelines are sequential.
-- Later rules see the output of earlier rules.
-- Missing rule references are rejected during config load.
+- Rules run in listed order.
+- Missing rule references are rejected when the config loads.
+- Language-restricted rules are skipped when the active document language does not match.
 
-## Post-processing
+## Post-Processing
 
-`post` is a per-replacement post-processing stage. Values run in the order listed:
+`post` runs on each replacement result in listed order.
 
-```json
-{
-  "post": ["removeBlankLine", "expandTab"]
-}
-```
+Available processors:
 
-- `expandTab` replaces `\t` in each replacement result with spaces using the active editor `tabSize`.
-- `removeBlankLine` removes blank lines from each replacement result.
+- `expandTab`: replace tabs with spaces using the active editor `tabSize`
+- `removeBlankLine`: remove blank lines, including whitespace-only lines
 
-## Selection behavior
+## Example
 
-- If there is exactly one empty selection, the entire document is processed.
-- Otherwise, each non-empty selection is processed independently.
-- All rule steps run in memory first, and the extension commits the final changes through one editor edit operation.
-- CRLF line endings are preserved.
-
-## Complete example
-
-```json
+```jsonc
 {
   "rules": {
-    "trim-whitespace": {
+    "trim-trailing-space": {
       "type": "regexReplace",
-      "name": "Trim Whitespace",
-      "find": "^\\s*(.*)\\s*$",
-      "replace": "$1"
-    },
-    "wrap-block": {
-      "type": "regexReplace",
-      "name": "Wrap Block",
-      "description": "Turn a single-line block into an indented multi-line block",
-      "find": "^(\\s*)\\[(.*)\\](\\s*)$",
-      "replace": "$1begin {\\n$1\\t$2\\n$1} end$3",
-      "flag": "g",
-      "post": ["removeBlankLine", "expandTab"]
+      "name": "Trim Trailing Space",
+      "find": "[ \\t]+$",
+      "replace": "",
+      "flag": "gm"
     },
     "status-keywords": {
       "type": "literalMap",
       "name": "Status Keywords",
-      "description": "Normalize short status markers",
       "language": ["markdown"],
       "map": {
         ":ok:": "[done]",
         ":warn:": "[needs-review]"
       }
+    },
+    "wrap-block": {
+      "type": "regexReplace",
+      "name": "Wrap Block",
+      "find": "^(\\s*)\\[(.*)\\](\\s*)$",
+      "replace": "$1begin {\\n$1\\t$2\\n$1} end$3",
+      "flag": "g",
+      "post": ["expandTab"]
     }
   },
   "rulePipelines": {
-    "cleanup": {
-      "name": "Cleanup Pipeline",
-      "description": "Whitespace cleanup followed by block normalization",
-      "rules": [
-        "trim-whitespace",
-        "wrap-block"
-      ]
+    "markdown-cleanup": {
+      "name": "Markdown Cleanup",
+      "description": "Trim trailing spaces and normalize status markers",
+      "rules": ["trim-trailing-space", "status-keywords"]
     }
   }
 }

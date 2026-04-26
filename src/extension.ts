@@ -1,10 +1,15 @@
 import * as vscode from 'vscode';
 
-import TextReplaceRuleEditProvider from './editProvider';
+import TextReplaceRuleEditProvider, { clearExternalConfigCache } from './editProvider';
 
 export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(vscode.commands.registerCommand('text-replace-rule.runRule', runSingleRule));
     context.subscriptions.push(vscode.commands.registerCommand('text-replace-rule.runRulePipeline', runRulePipeline));
+    context.subscriptions.push(vscode.workspace.onDidChangeConfiguration((event) => {
+        if (event.affectsConfiguration('text-replace-rule.configPath')) {
+            clearExternalConfigCache();
+        }
+    }));
 }
 
 export function deactivate() {

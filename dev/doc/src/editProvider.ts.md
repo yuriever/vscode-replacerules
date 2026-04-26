@@ -36,6 +36,7 @@ Core engine for the extension.
 
 ## Notes
 
-- Config is reloaded on each command invocation.
+- External config is cached by resolved path after first successful load.
+- External config file edits require a VS Code window reload.
 - Errors are surfaced through VS Code error messages.
 - This file owns behavior. `src/extension.ts` should stay thin.

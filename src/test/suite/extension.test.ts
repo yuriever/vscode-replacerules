@@ -406,6 +406,82 @@ suite('Extension Test Suite', () => {
 		assert.strictEqual(editor.document.getText(), 'baz');
 	});
 
+	test('runRule reuses cached external config when the config file changes', async () => {
+		const fixturePath = await writeConfigFile({
+			rules: {
+				'Word rule': {
+					type: 'regexReplace',
+					find: 'word',
+					replace: 'cached',
+					flag: 'g'
+				}
+			}
+		});
+		await setTextReplaceRuleConfig(fixturePath);
+
+		const firstEditor = await openEditor('word');
+		firstEditor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
+
+		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Word rule' });
+		assert.strictEqual(firstEditor.document.getText(), 'cached');
+
+		await fs.writeFile(fixturePath, JSON.stringify({
+			rules: {
+				'Word rule': {
+					type: 'regexReplace',
+					find: 'word',
+					replace: 'updated',
+					flag: 'g'
+				}
+			}
+		}), 'utf8');
+
+		const secondEditor = await openEditor('word');
+		secondEditor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
+
+		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Word rule' });
+		assert.strictEqual(secondEditor.document.getText(), 'cached');
+	});
+
+	test('runRule reloads cached external config after configPath changes', async () => {
+		const fixturePath = await writeConfigFile({
+			rules: {
+				'Word rule': {
+					type: 'regexReplace',
+					find: 'word',
+					replace: 'cached',
+					flag: 'g'
+				}
+			}
+		});
+		await setTextReplaceRuleConfig(fixturePath);
+
+		const firstEditor = await openEditor('word');
+		firstEditor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
+
+		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Word rule' });
+		assert.strictEqual(firstEditor.document.getText(), 'cached');
+
+		await fs.writeFile(fixturePath, JSON.stringify({
+			rules: {
+				'Word rule': {
+					type: 'regexReplace',
+					find: 'word',
+					replace: 'updated',
+					flag: 'g'
+				}
+			}
+		}), 'utf8');
+		await setTextReplaceRuleConfig(undefined);
+		await setTextReplaceRuleConfig(fixturePath);
+
+		const secondEditor = await openEditor('word');
+		secondEditor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
+
+		await vscode.commands.executeCommand('text-replace-rule.runRule', { ruleName: 'Word rule' });
+		assert.strictEqual(secondEditor.document.getText(), 'updated');
+	});
+
 	test('runRule executes multi-step regexReplace rules with per-step flag arrays', async () => {
 		await setTextReplaceRuleConfig(await writeConfigFile({
 			rules: {
