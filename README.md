@@ -1,4 +1,4 @@
-# [TextReplaceRule](https://github.com/yuriever/vscode-replacerules.git)
+# [TextReplaceRule](https://github.com/yuriever/TextReplaceRule.git)
 
 **Originally forked from [bhughes339/vscode-replacerules](https://github.com/bhughes339/vscode-replacerules). TextReplaceRule is now an independent extension.**
 
