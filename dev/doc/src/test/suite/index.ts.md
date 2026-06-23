@@ -6,7 +6,7 @@ This file discovers compiled test files and runs them through Mocha.
 
 ## Main function
 
-- run(): Promise<void>
+* run(): Promise<void>
 
 ## Execution flow
 
@@ -18,10 +18,10 @@ This file discovers compiled test files and runs them through Mocha.
 
 ## Why this file exists
 
-- Keeps test discovery logic separate from test cases.
-- Provides a single async entry point for runTest.ts.
+* Keeps test discovery logic separate from test cases.
+* Provides a single async entry point for runTest.ts.
 
 ## Maintenance notes
 
-- This file operates on compiled JavaScript output, not TypeScript source files.
-- If the test naming convention changes, update the glob pattern here.
+* This file operates on compiled JavaScript output, not TypeScript source files.
+* If the test naming convention changes, update the glob pattern here.

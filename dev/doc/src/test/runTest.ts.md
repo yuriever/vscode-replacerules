@@ -6,9 +6,9 @@ This file is the integration-test launcher for the extension.
 
 ## What it does
 
-- Resolves extensionDevelopmentPath to the project root.
-- Resolves extensionTestsPath to the compiled test suite entry at out/test/suite/index.
-- Calls runTests from @vscode/test-electron.
+* Resolves extensionDevelopmentPath to the project root.
+* Resolves extensionTestsPath to the compiled test suite entry at out/test/suite/index.
+* Calls runTests from @vscode/test-electron.
 
 ## Execution flow
 
@@ -19,5 +19,5 @@ This file is the integration-test launcher for the extension.
 
 ## Maintenance notes
 
-- This file should stay small and orchestration-only.
-- Test discovery and assertions belong to suite/index.ts and suite/*.test.ts.
+* This file should stay small and orchestration-only.
+* Test discovery and assertions belong to suite/index.ts and suite/*.test.ts.

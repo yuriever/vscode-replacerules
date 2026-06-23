@@ -4,14 +4,14 @@ Extension entrypoint.
 
 ## Responsibilities
 
-- register `text-replace-rule.runRule`
-- register `text-replace-rule.runRulePipeline`
-- clear the external config cache when `text-replace-rule.configPath` changes
-- read the active editor
-- forward work to `TextReplaceRuleEditProvider`
+* register `text-replace-rule.runRule`
+* register `text-replace-rule.runRulePipeline`
+* clear the external config cache when `text-replace-rule.configPath` changes
+* read the active editor
+* forward work to `TextReplaceRuleEditProvider`
 
 ## Behavior
 
-- If command args include `ruleName` or `rulePipelineName`, run directly.
-- Otherwise open the corresponding quick pick.
-- No replace logic should live here.
+* If command args include `ruleName` or `rulePipelineName`, run directly.
+* Otherwise open the corresponding quick pick.
+* No replace logic should live here.
